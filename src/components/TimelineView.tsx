@@ -1,15 +1,33 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { getTimelineItems } from '@/utils/dummyData';
 import { HistoricalElement } from '@/types';
 
 interface TimelineViewProps {
   onElementSelect: (element: HistoricalElement) => void;
+  historicalElements?: HistoricalElement[];
 }
 
-const TimelineView: React.FC<TimelineViewProps> = ({ onElementSelect }) => {
-  const timelineItems = getTimelineItems();
-  
+const TimelineView: React.FC<TimelineViewProps> = ({ onElementSelect, historicalElements }) => {
+  const [timelineItems, setTimelineItems] = React.useState<TimelineItem[]>([]);
+
+  useEffect(() => {
+    if (historicalElements) {
+      // Filter only elements with years
+      const validTimelineItems: TimelineItem[] = historicalElements
+        .filter(element => element.year !== undefined)
+        .map(element => ({
+          ...element,
+          year: element.year as number
+        }))
+        .sort((a, b) => a.year - b.year);
+      
+      setTimelineItems(validTimelineItems);
+    } else {
+      // Fallback to dummy data
+      setTimelineItems(getTimelineItems());
+    }
+  }, [historicalElements]);
+
   const getTypeColor = (type: string) => {
     switch(type) {
       case 'person': return 'bg-chronoPurple';

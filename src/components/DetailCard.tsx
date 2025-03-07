@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, Calendar, FileText, Lightbulb, Link, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,24 +9,23 @@ interface DetailCardProps {
   element: HistoricalElement;
   onClose: () => void;
   onElementSelect: (element: HistoricalElement) => void;
+  onElementUpdate?: (id: string, updates: Partial<HistoricalElement>) => Promise<HistoricalElement | null>;
 }
 
-interface ExtendedNetworkData {
-  nodes?: Set<string>;
-  nodeDepths?: Map<string, number>;
-}
-
-const DetailCard: React.FC<DetailCardProps> = ({ element, onClose, onElementSelect }) => {
+const DetailCard: React.FC<DetailCardProps> = ({ 
+  element, 
+  onClose, 
+  onElementSelect,
+  onElementUpdate
+}) => {
   const [showExtendedRelationships, setShowExtendedRelationships] = React.useState(false);
   const directRelationships = getRelationshipsByElementId(element.id);
   const directRelatedElements = getRelatedElements(element.id);
   
-  // Get extended relationship data
   const extendedNetworkData: ExtendedNetworkData = getRelationshipsByDepth(element.id, 3);
   const extendedNodeIds = extendedNetworkData.nodes || new Set();
   const nodeDepths = extendedNetworkData.nodeDepths || new Map();
   
-  // Filter out the current element and direct connections to get 2nd and 3rd degree connections
   const extendedElements = Array.from(extendedNodeIds)
     .filter(id => id !== element.id && !directRelatedElements.some(rel => rel.id === id))
     .map(id => {
@@ -51,6 +49,63 @@ const DetailCard: React.FC<DetailCardProps> = ({ element, onClose, onElementSele
         return <User className="h-4 w-4" />;
     }
   };
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: element.name,
+    description: element.description,
+    date: element.date || '',
+    tags: element.tags.join(', ')
+  });
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      setEditForm({
+        name: element.name,
+        description: element.description,
+        date: element.date || '',
+        tags: element.tags.join(', ')
+      });
+    }
+    setIsEditing(!isEditing);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEditForm({
+      ...editForm,
+      [name]: value
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!onElementUpdate) {
+      setIsEditing(false);
+      return;
+    }
+    
+    const tagsArray = editForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    
+    const updatedElement = await onElementUpdate(element.id, {
+      name: editForm.name,
+      description: editForm.description,
+      date: editForm.date,
+      tags: tagsArray
+    });
+    
+    if (updatedElement) {
+      setIsEditing(false);
+    }
+  };
+
+  useEffect(() => {
+    setEditForm({
+      name: element.name,
+      description: element.description,
+      date: element.date || '',
+      tags: element.tags.join(', ')
+    });
+  }, [element]);
 
   return (
     <div className="glass-card overflow-hidden max-w-lg w-full animate-fade-in">
@@ -94,7 +149,6 @@ const DetailCard: React.FC<DetailCardProps> = ({ element, onClose, onElementSele
           </div>
         </div>
         
-        {/* Direct connections */}
         {directRelatedElements.length > 0 && (
           <div className="mb-4">
             <p className="text-sm font-medium mb-2">Direct Connections:</p>
@@ -126,7 +180,6 @@ const DetailCard: React.FC<DetailCardProps> = ({ element, onClose, onElementSele
           </div>
         )}
         
-        {/* Extended connections section */}
         {extendedElements.length > 0 && (
           <div className="mt-4">
             <div className="flex justify-between items-center mb-2">

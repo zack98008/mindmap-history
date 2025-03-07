@@ -1,7 +1,26 @@
 
 import React from 'react';
-import { Brain, Calendar, Network } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { 
+  Network, 
+  Clock, 
+  FileText, 
+  BrainCircuit, 
+  User, 
+  LogOut,
+  Map
+} from 'lucide-react';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface NavBarProps {
   activeView: 'map' | 'timeline';
@@ -9,36 +28,129 @@ interface NavBarProps {
 }
 
 const NavBar: React.FC<NavBarProps> = ({ activeView, onViewChange }) => {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+  
+  const userInitials = user?.email 
+    ? user.email.substring(0, 2).toUpperCase() 
+    : 'U';
+  
   return (
-    <header className="glass-card py-3 px-6 mb-8 flex items-center justify-between">
-      <div className="flex items-center space-x-3">
-        <Brain className="h-8 w-8 text-chronoPurple animate-pulse-soft" />
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-chronoPurple via-chronoBlue to-chronoTeal bg-clip-text text-transparent">
+    <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+      <div className="flex items-center">
+        <Link to="/" className="text-2xl font-bold mr-4 bg-gradient-to-r from-chronoPurple to-chronoBlue bg-clip-text text-transparent">
           ChronoMind
-        </h1>
+        </Link>
+        
+        <div className="hidden sm:flex gap-2">
+          <Button 
+            variant={activeView === 'map' ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => onViewChange('map')}
+            className={activeView === 'map' ? 'bg-chronoPurple hover:bg-chronoPurple/90' : ''}
+          >
+            <Network className="h-4 w-4 mr-2" />
+            Network View
+          </Button>
+          
+          <Button 
+            variant={activeView === 'timeline' ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => onViewChange('timeline')}
+            className={activeView === 'timeline' ? 'bg-chronoBlue hover:bg-chronoBlue/90' : ''}
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            Timeline View
+          </Button>
+        </div>
       </div>
       
-      <div className="flex space-x-3">
+      <div className="flex gap-2 items-center">
+        <Button 
+          variant="outline" 
+          size="sm"
+          asChild
+        >
+          <Link to="/maps">
+            <Map className="h-4 w-4 mr-2" />
+            My Maps
+          </Link>
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          size="sm"
+          asChild
+        >
+          <Link to="/templates">
+            <FileText className="h-4 w-4 mr-2" />
+            Templates
+          </Link>
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          size="sm"
+          asChild
+        >
+          <Link to="/memorization">
+            <BrainCircuit className="h-4 w-4 mr-2" />
+            Memorization
+          </Link>
+        </Button>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <Avatar>
+                <AvatarFallback className="bg-slate-700 text-white">
+                  {userInitials}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/maps')}>
+              <Map className="h-4 w-4 mr-2" />
+              My Maps
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      
+      <div className="sm:hidden flex gap-2">
         <Button 
           variant={activeView === 'map' ? 'default' : 'outline'} 
           size="sm"
-          className={activeView === 'map' ? 'bg-chronoPurple hover:bg-chronoPurple/80' : ''}
           onClick={() => onViewChange('map')}
+          className={activeView === 'map' ? 'bg-chronoPurple hover:bg-chronoPurple/90' : ''}
         >
           <Network className="h-4 w-4 mr-2" />
-          Knowledge Map
+          Network
         </Button>
+        
         <Button 
           variant={activeView === 'timeline' ? 'default' : 'outline'} 
           size="sm"
-          className={activeView === 'timeline' ? 'bg-chronoPurple hover:bg-chronoPurple/80' : ''}
           onClick={() => onViewChange('timeline')}
+          className={activeView === 'timeline' ? 'bg-chronoBlue hover:bg-chronoBlue/90' : ''}
         >
-          <Calendar className="h-4 w-4 mr-2" />
+          <Clock className="h-4 w-4 mr-2" />
           Timeline
         </Button>
       </div>
-    </header>
+    </div>
   );
 };
 

@@ -18,21 +18,37 @@ interface HistoryMapProps {
   selectedElementId?: string;
   customNodes?: MapNode[] | null;
   customLinks?: MapLink[] | null;
+  historicalElements?: HistoricalElement[];
+  onNodesChange?: (nodes: MapNode[]) => void;
+  onLinksChange?: (links: MapLink[]) => void;
+  onNodeCreate?: (nodeData: Omit<HistoricalElement, 'id'>) => Promise<MapNode | null>;
+  onNodeUpdate?: (id: string, updates: Partial<HistoricalElement>) => Promise<HistoricalElement | null>;
+  onNodeDelete?: (id: string) => Promise<boolean>;
+  onLinkCreate?: (sourceId: string, targetId: string, type: string, description?: string) => Promise<MapLink | null>;
+  onLinkDelete?: (id: string) => Promise<boolean>;
 }
 
 const HistoryMap: React.FC<HistoryMapProps> = ({ 
   onElementSelect, 
   selectedElementId,
   customNodes = null,
-  customLinks = null
+  customLinks = null,
+  historicalElements,
+  onNodesChange,
+  onLinksChange,
+  onNodeCreate,
+  onNodeUpdate,
+  onNodeDelete,
+  onLinkCreate,
+  onLinkDelete
 }) => {
   const { toast } = useToast();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [nodes, setNodes] = useState<MapNode[]>(customNodes || generateMapNodes());
-  const [links, setLinks] = useState<MapLink[]>(customLinks || generateMapLinks());
-  const [timelineItems, setTimelineItems] = useState<TimelineItem[]>(getTimelineItems());
+  const [nodes, setNodes] = useState<MapNode[]>(customNodes || []);
+  const [links, setLinks] = useState<MapLink[]>(customLinks || []);
+  const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
   
   const [isCreatingNode, setIsCreatingNode] = useState(false);
   const [isCreatingConnection, setIsCreatingConnection] = useState(false);
@@ -133,20 +149,33 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
     }
   };
 
-  const deleteNode = (nodeId: string) => {
-    setNodes(nodes.filter(node => node.id !== nodeId));
-    setLinks(links.filter(link => {
-      const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-      const targetId = typeof link.target === 'string' ? link.target : link.target.id;
-      return sourceId !== nodeId && targetId !== nodeId;
-    }));
+  const deleteNode = async (nodeId: string) => {
+    if (onNodeDelete) {
+      const success = await onNodeDelete(nodeId);
+      if (success) {
+        updateNodes(nodes.filter(node => node.id !== nodeId));
+        updateLinks(links.filter(link => {
+          const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+          const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+          return sourceId !== nodeId && targetId !== nodeId;
+        }));
+      }
+    } else {
+      updateNodes(nodes.filter(node => node.id !== nodeId));
+      updateLinks(links.filter(link => {
+        const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+        const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+        return sourceId !== nodeId && targetId !== nodeId;
+      }));
+    }
+    
     toast({
       title: "Node Deleted",
       description: "The node has been successfully removed.",
     });
   };
 
-  const saveNodeForm = () => {
+  const saveNodeForm = async () => {
     const { name, type, date, description, tags, imageUrl, x, y } = nodeFormData;
     
     if (!name.trim()) {
@@ -161,38 +190,8 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
     const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
     
     if (editingNodeId) {
-      setNodes(nodes.map(node => {
-        if (node.id === editingNodeId) {
-          return {
-            ...node,
-            element: {
-              ...node.element,
-              name,
-              type: type as HistoricalElementType,
-              date,
-              description,
-              tags: tagsArray,
-              imageUrl: imageUrl || undefined,
-              year: date ? parseInt(date.split('-')[0]) : undefined
-            },
-            isEditing: false
-          };
-        }
-        return node;
-      }));
-      
-      toast({
-        title: "Node Updated",
-        description: "The node has been successfully updated.",
-      });
-    } else {
-      const newNodeId = generateUniqueId();
-      const newNode: MapNode = {
-        id: newNodeId,
-        x: x as number || (containerRef.current?.clientWidth || 500) / 2,
-        y: y as number || (containerRef.current?.clientHeight || 300) / 2,
-        element: {
-          id: newNodeId,
+      if (onNodeUpdate) {
+        const updatedElement = await onNodeUpdate(editingNodeId, {
           name,
           type: type as HistoricalElementType,
           date,
@@ -200,29 +199,130 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
           tags: tagsArray,
           imageUrl: imageUrl || undefined,
           year: date ? parseInt(date.split('-')[0]) : undefined
+        });
+        
+        if (updatedElement) {
+          updateNodes(nodes.map(node => {
+            if (node.id === editingNodeId) {
+              return {
+                ...node,
+                element: updatedElement,
+                isEditing: false
+              };
+            }
+            return node;
+          }));
         }
+      } else {
+        updateNodes(nodes.map(node => {
+          if (node.id === editingNodeId) {
+            return {
+              ...node,
+              element: {
+                ...node.element,
+                name,
+                type: type as HistoricalElementType,
+                date,
+                description,
+                tags: tagsArray,
+                imageUrl: imageUrl || undefined,
+                year: date ? parseInt(date.split('-')[0]) : undefined
+              },
+              isEditing: false
+            };
+          }
+          return node;
+        }));
+      }
+      
+      toast({
+        title: "Node Updated",
+        description: "The node has been successfully updated.",
+      });
+    } else {
+      const newNodeData = {
+        name,
+        type: type as HistoricalElementType,
+        date,
+        description,
+        tags: tagsArray,
+        imageUrl: imageUrl || undefined,
+        year: date ? parseInt(date.split('-')[0]) : undefined
       };
       
-      setNodes([...nodes, newNode]);
-      
-      if (isCreatingConnection && connectionSourceId) {
-        const newLinkId = `link_${generateUniqueId()}`;
-        const newLink: MapLink = {
-          id: newLinkId,
-          source: connectionSourceId,
-          target: newNodeId,
-          relationship: {
-            id: newLinkId,
-            sourceId: connectionSourceId,
-            targetId: newNodeId,
-            description: "Connected to",
-            type: "custom"
+      if (onNodeCreate) {
+        const newNode = await onNodeCreate(newNodeData);
+        
+        if (newNode) {
+          updateNodes([...nodes, newNode]);
+          
+          if (isCreatingConnection && connectionSourceId) {
+            if (onLinkCreate) {
+              const newLink = await onLinkCreate(
+                connectionSourceId,
+                newNode.id,
+                "custom",
+                "Connected to"
+              );
+              
+              if (newLink) {
+                updateLinks([...links, newLink]);
+              }
+            } else {
+              const newLinkId = `link_${generateUniqueId()}`;
+              const newLink: MapLink = {
+                id: newLinkId,
+                source: connectionSourceId,
+                target: newNode.id,
+                relationship: {
+                  id: newLinkId,
+                  sourceId: connectionSourceId,
+                  targetId: newNode.id,
+                  description: "Connected to",
+                  type: "custom"
+                }
+              };
+              
+              updateLinks([...links, newLink]);
+            }
+            
+            setIsCreatingConnection(false);
+            setConnectionSourceId(null);
+          }
+        }
+      } else {
+        const newNodeId = generateUniqueId();
+        const newNode: MapNode = {
+          id: newNodeId,
+          x: x as number || (containerRef.current?.clientWidth || 500) / 2,
+          y: y as number || (containerRef.current?.clientHeight || 300) / 2,
+          element: {
+            id: newNodeId,
+            ...newNodeData
           }
         };
         
-        setLinks([...links, newLink]);
-        setIsCreatingConnection(false);
-        setConnectionSourceId(null);
+        updateNodes([...nodes, newNode]);
+        
+        if (isCreatingConnection && connectionSourceId) {
+          const newLinkId = `link_${generateUniqueId()}`;
+          const newLink: MapLink = {
+            id: newLinkId,
+            source: connectionSourceId,
+            target: newNodeId,
+            relationship: {
+              id: newLinkId,
+              sourceId: connectionSourceId,
+              targetId: newNodeId,
+              description: "Connected to",
+              type: "custom"
+            }
+          };
+          
+          updateLinks([...links, newLink]);
+          setIsCreatingConnection(false);
+          setConnectionSourceId(null);
+        }
       }
       
       toast({
@@ -392,12 +492,31 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
   useEffect(() => {
     if (customNodes) {
       setNodes(customNodes);
+    } else if (historicalElements && historicalElements.length > 0 && !nodes.length) {
+      const width = containerRef.current?.clientWidth || 800;
+      const height = containerRef.current?.clientHeight || 600;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      
+      const generatedNodes = historicalElements.map((element, index) => {
+        const angle = (index / historicalElements.length) * Math.PI * 2;
+        const radius = Math.min(width, height) * 0.4;
+        
+        return {
+          id: element.id,
+          x: centerX + Math.cos(angle) * radius,
+          y: centerY + Math.sin(angle) * radius,
+          element: element
+        };
+      });
+      
+      setNodes(generatedNodes);
     }
     
     if (customLinks) {
       setLinks(customLinks);
     }
-  }, [customNodes, customLinks]);
+  }, [customNodes, customLinks, historicalElements]);
 
   useEffect(() => {
     if (showExtendedRelationships && selectedElementId && !customNodes) {
@@ -1159,7 +1278,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
             }
           };
           
-          setLinks([...links, newLink]);
+          updateLinks([...links, newLink]);
           setIsCreatingConnection(false);
           setConnectionSourceId(null);
           
@@ -1187,7 +1306,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
               };
             }
           });
-          setNodes(updatedNodes);
+          updateNodes(updatedNodes);
           
           onElementSelect(d.element);
         }
