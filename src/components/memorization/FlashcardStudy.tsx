@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import { getHistoricalEvents, getHistoricalPersons, getHistoricalDocuments, getH
 import { HistoricalElement } from '@/types';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, RotateCcw, Bookmark, CheckCircle, XCircle, Settings } from 'lucide-react';
+import InfoGraphic from './InfoGraphic';
 
 type FlashcardStatus = 'studying' | 'mastered' | 'struggling';
 
@@ -193,10 +195,29 @@ const FlashcardStudy = () => {
                     <XCircle className="h-5 w-5 text-red-500" />
                   </div>
                 )}
-                <h3 className="text-2xl font-bold text-center mb-4">{currentFlashcard?.name}</h3>
-                <p className="text-center text-sm text-muted-foreground">
-                  {currentFlashcard?.year && `Year: ${currentFlashcard.year}`}
-                </p>
+                
+                <div className="flex w-full h-full">
+                  {/* Left side - Text content */}
+                  <div className="w-1/2 flex flex-col justify-center pr-4">
+                    <h3 className="text-2xl font-bold mb-4">{currentFlashcard?.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {currentFlashcard?.year && `Year: ${currentFlashcard.year}`}
+                    </p>
+                  </div>
+                  
+                  {/* Right side - Infographic */}
+                  <div className="w-1/2 border-l border-white/10 pl-4">
+                    {currentFlashcard && (
+                      <InfoGraphic 
+                        type={currentFlashcard.type}
+                        year={currentFlashcard.year}
+                        name={currentFlashcard.name}
+                        tags={currentFlashcard.tags}
+                      />
+                    )}
+                  </div>
+                </div>
+                
                 <div className="absolute bottom-3 w-full text-center text-xs text-muted-foreground">
                   Click to flip
                 </div>
