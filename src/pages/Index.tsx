@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import SearchBar from '@/components/SearchBar';
@@ -13,16 +13,6 @@ import { FileText } from 'lucide-react';
 const Index = () => {
   const [activeView, setActiveView] = useState<'map' | 'timeline'>('map');
   const [selectedElement, setSelectedElement] = useState<HistoricalElement | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  
-  useEffect(() => {
-    // Ensure components have time to render properly
-    const timer = setTimeout(() => {
-      setIsLoaded(true);
-    }, 300); // Short delay to ensure DOM is ready
-    
-    return () => clearTimeout(timer);
-  }, []);
   
   const handleElementSelect = (element: HistoricalElement) => {
     setSelectedElement(element);
@@ -40,11 +30,8 @@ const Index = () => {
         <SearchBar onResultSelect={handleElementSelect} />
       </div>
       
-      <div 
-        className={`flex flex-col md:flex-row gap-8 ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500`}
-        style={{ minHeight: 'calc(100vh - 240px)' }}
-      >
-        <div className="w-full md:w-2/3 min-h-[500px]">
+      <div className="flex flex-col md:flex-row gap-8">
+        <div className="w-full md:w-2/3">
           {activeView === 'map' ? (
             <HistoryMap 
               onElementSelect={handleElementSelect} 
