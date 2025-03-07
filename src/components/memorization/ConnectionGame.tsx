@@ -1,302 +1,271 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { getAllHistoricalElements, getRelationshipsByElementId } from '@/utils/dummyData';
-import { HistoricalElement, Relationship } from '@/types';
+import { getHistoricalEvents, getHistoricalPeople, getHistoricalDocuments, getHistoricalConcepts } from '@/utils/dummyData';
+import { HistoricalElement } from '@/types';
 import { motion } from 'framer-motion';
-import { Check, RefreshCw, Puzzle } from 'lucide-react';
+import { Shuffle, Brain, Award, RotateCcw } from 'lucide-react';
 
 const ConnectionGame = () => {
-  const [elements, setElements] = useState<HistoricalElement[]>([]);
-  const [selectedElements, setSelectedElements] = useState<string[]>([]);
-  const [foundConnections, setFoundConnections] = useState<Relationship[]>([]);
-  const [level, setLevel] = useState(1);
-  const [gameComplete, setGameComplete] = useState(false);
-  const [score, setScore] = useState(0);
-  
-  // Get all relationships for the current game level
-  const relationships = useMemo(() => {
-    const allRelationships: Relationship[] = [];
-    elements.forEach(element => {
-      const elementRelationships = getRelationshipsByElementId(element.id);
-      elementRelationships.forEach(relationship => {
-        // Only add if both elements in the relationship are in our current game elements
-        const sourceInGame = elements.some(e => e.id === relationship.sourceId);
-        const targetInGame = elements.some(e => e.id === relationship.targetId);
-        if (sourceInGame && targetInGame && !allRelationships.some(r => r.id === relationship.id)) {
-          allRelationships.push(relationship);
-        }
-      });
-    });
-    return allRelationships;
-  }, [elements]);
-  
-  // Initialize game with new elements
+  const [connections, setConnections] = useState<{
+    group1: HistoricalElement[];
+    group2: HistoricalElement[];
+    group3: HistoricalElement[];
+    group4: HistoricalElement[];
+  }>({
+    group1: [],
+    group2: [],
+    group3: [],
+    group4: []
+  });
+  const [selectedTiles, setSelectedTiles] = useState<HistoricalElement[]>([]);
+  const [solvedGroups, setSolvedGroups] = useState<string[]>([]);
+  const [attempts, setAttempts] = useState(4);
+  const [gameOver, setGameOver] = useState(false);
+  const [gameWon, setGameWon] = useState(false);
+
+  // Initialize game on component mount
   useEffect(() => {
-    startNewLevel(level);
-  }, [level]);
-  
-  const startNewLevel = (levelNumber: number) => {
-    const allElements = getAllHistoricalElements();
-    
-    // Filter elements with relationships
-    const elementsWithRelationships = allElements.filter(element => {
-      const relationships = getRelationshipsByElementId(element.id);
-      return relationships.length > 0;
+    initializeGame();
+  }, []);
+
+  const initializeGame = () => {
+    // Get a subset of each type of historical element
+    const people = getHistoricalPeople().slice(0, 4);
+    const events = getHistoricalEvents().slice(0, 4);
+    const documents = getHistoricalDocuments().slice(0, 4);
+    const concepts = getHistoricalConcepts().slice(0, 4);
+
+    // Set up the connections
+    setConnections({
+      group1: people,
+      group2: events,
+      group3: documents,
+      group4: concepts
     });
-    
-    // Pick random elements for this level - more elements for higher levels
-    const elementCount = Math.min(4 + levelNumber, 12);
-    const shuffled = [...elementsWithRelationships].sort(() => Math.random() - 0.5);
-    const gameElements: HistoricalElement[] = [];
-    
-    // Build a connected graph of elements
-    const startElement = shuffled[0];
-    gameElements.push(startElement);
-    
-    // Add connected elements
-    let candidateElements = new Set<string>();
-    
-    // Add initial element's connections
-    const startRelationships = getRelationshipsByElementId(startElement.id);
-    startRelationships.forEach(rel => {
-      const connectedId = rel.sourceId === startElement.id ? rel.targetId : rel.sourceId;
-      candidateElements.add(connectedId);
-    });
-    
-    // While we need more elements and have candidates
-    while (gameElements.length < elementCount && candidateElements.size > 0) {
-      // Convert set to array for selection
-      const candidates = Array.from(candidateElements);
-      const nextId = candidates[Math.floor(Math.random() * candidates.size)];
-      
-      // Find and add this element
-      const nextElement = allElements.find(e => e.id === nextId);
-      if (nextElement && !gameElements.some(e => e.id === nextId)) {
-        gameElements.push(nextElement);
-        
-        // Add its connections to candidates
-        const relationships = getRelationshipsByElementId(nextId);
-        relationships.forEach(rel => {
-          const connectedId = rel.sourceId === nextId ? rel.targetId : rel.sourceId;
-          if (!gameElements.some(e => e.id === connectedId)) {
-            candidateElements.add(connectedId);
-          }
-        });
-      }
-      
-      // Remove this element from candidates
-      candidateElements.delete(nextId);
-    }
-    
-    // If we don't have enough connected elements, add some random ones
-    while (gameElements.length < elementCount) {
-      const randomElement = shuffled.find(e => !gameElements.some(ge => ge.id === e.id));
-      if (randomElement) {
-        gameElements.push(randomElement);
-      } else {
-        break;
-      }
-    }
-    
-    // Shuffle the game elements for display
-    setElements(gameElements.sort(() => Math.random() - 0.5));
-    setSelectedElements([]);
-    setFoundConnections([]);
-    setGameComplete(false);
+
+    // Reset game state
+    setSelectedTiles([]);
+    setSolvedGroups([]);
+    setAttempts(4);
+    setGameOver(false);
+    setGameWon(false);
   };
-  
-  const handleElementClick = (elementId: string) => {
-    if (gameComplete) return;
-    
-    if (selectedElements.includes(elementId)) {
-      // Deselect the element
-      setSelectedElements(selectedElements.filter(id => id !== elementId));
-    } else {
-      // Select the element
-      const newSelected = [...selectedElements, elementId];
-      setSelectedElements(newSelected);
-      
-      // Check if we have exactly 2 elements selected
-      if (newSelected.length === 2) {
-        checkForConnection(newSelected[0], newSelected[1]);
-      }
+
+  // Shuffle all tiles for display
+  const getShuffledTiles = () => {
+    const allTiles = [
+      ...connections.group1,
+      ...connections.group2,
+      ...connections.group3,
+      ...connections.group4
+    ].filter(tile => !solvedGroups.includes(getGroupForElement(tile)));
+
+    // Fisher-Yates shuffle
+    for (let i = allTiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allTiles[i], allTiles[j]] = [allTiles[j], allTiles[i]];
+    }
+
+    return allTiles;
+  };
+
+  // Get the group name for a given element
+  const getGroupForElement = (element: HistoricalElement): string => {
+    if (connections.group1.some(e => e.id === element.id)) return 'group1';
+    if (connections.group2.some(e => e.id === element.id)) return 'group2';
+    if (connections.group3.some(e => e.id === element.id)) return 'group3';
+    if (connections.group4.some(e => e.id === element.id)) return 'group4';
+    return '';
+  };
+
+  // Handle tile selection
+  const handleTileClick = (element: HistoricalElement) => {
+    if (gameOver || selectedTiles.find(tile => tile.id === element.id)) return;
+
+    const newSelectedTiles = [...selectedTiles, element];
+    setSelectedTiles(newSelectedTiles);
+
+    // Check if we have a full group of 4 selected
+    if (newSelectedTiles.length === 4) {
+      checkSelection(newSelectedTiles);
     }
   };
-  
-  const checkForConnection = (elementId1: string, elementId2: string) => {
-    // Find a relationship between the two elements
-    const connection = relationships.find(rel => 
-      (rel.sourceId === elementId1 && rel.targetId === elementId2) ||
-      (rel.sourceId === elementId2 && rel.targetId === elementId1)
-    );
+
+  // Check if the selected tiles form a valid group
+  const checkSelection = (tiles: HistoricalElement[]) => {
+    const groups = [
+      tiles.filter(tile => getGroupForElement(tile) === 'group1').length,
+      tiles.filter(tile => getGroupForElement(tile) === 'group2').length,
+      tiles.filter(tile => getGroupForElement(tile) === 'group3').length,
+      tiles.filter(tile => getGroupForElement(tile) === 'group4').length
+    ];
+
+    // Check if all tiles belong to the same group
+    const correctGroup = groups.findIndex(count => count === 4);
     
-    if (connection) {
-      // Found a valid connection!
-      const alreadyFound = foundConnections.some(c => c.id === connection.id);
+    if (correctGroup !== -1) {
+      // Correct guess!
+      const groupName = `group${correctGroup + 1}`;
+      toast.success('Correct match!');
+      setSolvedGroups([...solvedGroups, groupName]);
+      setSelectedTiles([]);
       
-      if (!alreadyFound) {
-        setFoundConnections([...foundConnections, connection]);
-        setScore(score + (10 * level));
-        
-        toast.success('Connection found!', {
-          description: connection.description
-        });
-        
-        // Check if all connections have been found
-        if (foundConnections.length + 1 === relationships.length) {
-          setGameComplete(true);
-          toast.success(`Level ${level} complete!`, {
-            description: `You found all ${relationships.length} connections`
-          });
-        }
-      } else {
-        toast.info('You already found this connection');
+      // Check if all groups are solved
+      if (solvedGroups.length + 1 === 4) {
+        setGameWon(true);
+        setGameOver(true);
+        toast.success('Congratulations! You won the game!');
       }
     } else {
-      toast.error('No direct connection between these elements');
+      // Incorrect guess
+      toast.error('Incorrect match!');
+      setAttempts(prev => prev - 1);
+      setSelectedTiles([]);
+      
+      // Check if game over
+      if (attempts <= 1) {
+        setGameOver(true);
+        toast.error('Game over! No more attempts left.');
+      }
     }
-    
-    // Reset selection
-    setSelectedElements([]);
   };
-  
-  const getElementName = (elementId: string) => {
-    const element = elements.find(e => e.id === elementId);
-    return element ? element.name : 'Unknown';
+
+  // Get group name for display
+  const getGroupDisplayName = (group: string): string => {
+    switch (group) {
+      case 'group1': return 'Historical People';
+      case 'group2': return 'Historical Events';
+      case 'group3': return 'Historical Documents';
+      case 'group4': return 'Historical Concepts';
+      default: return '';
+    }
   };
-  
-  const handleNextLevel = () => {
-    setLevel(level + 1);
-  };
-  
-  const restartGame = () => {
-    setLevel(1);
-    setScore(0);
-    startNewLevel(1);
-  };
-  
+
+  const shuffledTiles = getShuffledTiles();
+
   return (
-    <div className="glass-card p-8">
+    <div className="glass-card p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-xl font-semibold flex items-center">
-            <Puzzle className="h-5 w-5 mr-2" />
-            Connect the Elements
-          </h2>
-          <p className="text-sm text-muted-foreground">Level {level}</p>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          <div className="bg-slate-700/30 rounded-lg px-4 py-2">
-            <p className="text-xs text-muted-foreground">Score</p>
-            <p className="text-xl font-bold">{score}</p>
-          </div>
-          
-          <div className="bg-slate-700/30 rounded-lg px-4 py-2">
-            <p className="text-xs text-muted-foreground">Connections</p>
-            <p className="text-xl font-bold">{foundConnections.length}/{relationships.length}</p>
-          </div>
-          
-          <Button variant="outline" size="icon" onClick={() => startNewLevel(level)}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      
-      <div className="relative mb-8">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {elements.map(element => (
-            <motion.div
-              key={element.id}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Card 
-                className={`p-4 cursor-pointer transition-all hover:scale-105 
-                  ${selectedElements.includes(element.id) ? 'ring-2 ring-chronoPurple' : ''}
-                  ${element.type === 'person' ? 'bg-chronoPurple/20' : 
-                    element.type === 'event' ? 'bg-chronoBlue/20' : 
-                    element.type === 'document' ? 'bg-chronoTeal/20' : 'bg-chronoGold/20'}`}
-                onClick={() => handleElementClick(element.id)}
-              >
-                <h3 className="font-medium mb-1">{element.name}</h3>
-                <p className="text-xs text-muted-foreground capitalize">{element.type}</p>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-        
-        {/* Connection lines */}
-        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-10">
-          {foundConnections.map(connection => {
-            const sourceElement = document.getElementById(`card-${connection.sourceId}`);
-            const targetElement = document.getElementById(`card-${connection.targetId}`);
-            
-            if (!sourceElement || !targetElement) return null;
-            
-            const sourceRect = sourceElement.getBoundingClientRect();
-            const targetRect = targetElement.getBoundingClientRect();
-            
-            const svgRect = document.getElementById('connections-container')?.getBoundingClientRect();
-            if (!svgRect) return null;
-            
-            const sourceX = (sourceRect.left + sourceRect.width / 2) - svgRect.left;
-            const sourceY = (sourceRect.top + sourceRect.height / 2) - svgRect.top;
-            const targetX = (targetRect.left + targetRect.width / 2) - svgRect.left;
-            const targetY = (targetRect.top + targetRect.height / 2) - svgRect.top;
-            
-            return (
-              <line 
-                key={connection.id}
-                x1={sourceX} 
-                y1={sourceY} 
-                x2={targetX} 
-                y2={targetY}
-                stroke="rgb(168, 85, 247)"
-                strokeWidth="2"
-                strokeDasharray="5,5"
-              />
-            );
-          })}
-        </svg>
-      </div>
-      
-      {/* Found connections list */}
-      <div className="mb-6">
-        <h3 className="text-lg font-medium mb-3">Found Connections</h3>
-        {foundConnections.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Select two elements to find a connection between them.
+          <h2 className="text-2xl font-bold mb-1">Historical Connections</h2>
+          <p className="text-muted-foreground">
+            Find groups of 4 related historical elements
           </p>
-        ) : (
-          <div className="space-y-2">
-            {foundConnections.map(connection => (
-              <div key={connection.id} className="p-3 rounded-md bg-slate-700/30 flex items-center">
-                <Check className="h-4 w-4 text-green-500 mr-2" />
-                <div>
-                  <p className="font-medium">
-                    {getElementName(connection.sourceId)} ↔ {getElementName(connection.targetId)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{connection.description}</p>
-                </div>
-              </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={initializeGame} className="gap-2">
+            <RotateCcw className="h-4 w-4" />
+            New Game
+          </Button>
+          <Badge variant="outline" className="text-lg px-3 py-2">
+            <Brain className="h-4 w-4 mr-2" />
+            {attempts} attempts left
+          </Badge>
+        </div>
+      </div>
+      
+      {/* Solved groups */}
+      {solvedGroups.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-lg font-medium mb-3">Solved Connections:</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {solvedGroups.map(group => (
+              <Card key={group} className={`border-2 border-${group === 'group1' ? 'chronoPurple' : group === 'group2' ? 'chronoBlue' : group === 'group3' ? 'chronoTeal' : 'chronoGold'}`}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{getGroupDisplayName(group)}</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="text-xs space-y-1">
+                    {connections[group as keyof typeof connections].map(element => (
+                      <div key={element.id} className="font-medium">{element.name}</div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
       
-      {gameComplete && (
-        <div className="flex gap-4 justify-center">
-          <Button variant="outline" onClick={restartGame}>
-            Restart Game
-          </Button>
-          <Button onClick={handleNextLevel}>
-            Next Level
-          </Button>
+      {/* Game board */}
+      {!gameOver ? (
+        <>
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {selectedTiles.map((tile, index) => (
+              <motion.div
+                key={`selected-${index}`}
+                className="h-20 glass-card flex items-center justify-center p-2 cursor-pointer text-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                {tile.name}
+              </motion.div>
+            ))}
+            {Array(4 - selectedTiles.length).fill(0).map((_, i) => (
+              <div 
+                key={`empty-${i}`} 
+                className="h-20 border-2 border-dashed border-white/20 rounded-lg"
+              />
+            ))}
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {shuffledTiles.map((tile) => {
+              const isSelected = selectedTiles.some(s => s.id === tile.id);
+              return (
+                <motion.div
+                  key={tile.id}
+                  className={`h-20 glass-card flex items-center justify-center p-2 cursor-pointer text-center ${
+                    isSelected ? 'bg-primary/20' : ''
+                  }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => !isSelected && handleTileClick(tile)}
+                >
+                  {tile.name}
+                </motion.div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <div className="text-center my-12">
+          {gameWon ? (
+            <div className="space-y-4">
+              <Award className="h-16 w-16 mx-auto text-chronoGold" />
+              <h2 className="text-2xl font-bold text-chronoGold">Congratulations!</h2>
+              <p className="text-lg">You've successfully identified all the connections.</p>
+              <Button onClick={initializeGame} className="mt-4">Play Again</Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold text-destructive">Game Over</h2>
+              <p className="text-lg">You've run out of attempts.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                {['group1', 'group2', 'group3', 'group4'].filter(g => !solvedGroups.includes(g)).map(group => (
+                  <Card key={group} className={`border-2 border-${group === 'group1' ? 'chronoPurple' : group === 'group2' ? 'chronoBlue' : group === 'group3' ? 'chronoTeal' : 'chronoGold'}`}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">{getGroupDisplayName(group)}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="text-xs space-y-1">
+                        {connections[group as keyof typeof connections].map(element => (
+                          <div key={element.id} className="font-medium">{element.name}</div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              <Button onClick={initializeGame} className="mt-4">Play Again</Button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -42,12 +42,49 @@ export const exportVisualization = async (
       throw new Error('No visualization container found');
     }
 
+    // Prepare container for export by temporarily hiding buttons and controls
+    const buttonsAndControls = containerRef.current.querySelectorAll('button, .control-element');
+    const hiddenElements: { element: Element, display: string }[] = [];
+    
+    buttonsAndControls.forEach(element => {
+      hiddenElements.push({ 
+        element, 
+        display: (element as HTMLElement).style.display 
+      });
+      (element as HTMLElement).style.display = 'none';
+    });
+
+    // Ensure node titles are visible
+    const nodeElements = containerRef.current.querySelectorAll('.node-element');
+    const nodeLabels: { element: Element, visibility: string }[] = [];
+    
+    nodeElements.forEach(element => {
+      const labelElement = element.querySelector('.node-label');
+      if (labelElement) {
+        nodeLabels.push({ 
+          element: labelElement, 
+          visibility: (labelElement as HTMLElement).style.visibility 
+        });
+        (labelElement as HTMLElement).style.visibility = 'visible';
+      }
+    });
+
     // Generate image from the visualization
     const dataUrl = await toPng(containerRef.current, {
       quality,
       pixelRatio: scale,
       cacheBust: true,
       skipFonts: true, // Improves performance
+    });
+
+    // Restore hidden elements
+    hiddenElements.forEach(({ element, display }) => {
+      (element as HTMLElement).style.display = display;
+    });
+
+    // Restore node labels
+    nodeLabels.forEach(({ element, visibility }) => {
+      (element as HTMLElement).style.visibility = visibility;
     });
 
     // Handle different export formats
@@ -62,7 +99,7 @@ export const exportVisualization = async (
       return;
     }
 
-    // For PDF export
+    // For PDF export, calculate optimal dimensions based on visualization size
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -76,15 +113,45 @@ export const exportVisualization = async (
     const descriptionLines = pdf.splitTextToSize(description, 260);
     pdf.text(descriptionLines, 15, 25);
 
-    // Add the visualization image
+    // Add the visualization image with proper sizing
     const imgProps = pdf.getImageProperties(dataUrl);
-    const pdfWidth = pdf.internal.pageSize.getWidth() - 30;
+    const pdfWidth = pdf.internal.pageSize.getWidth() - 30; // Account for margins
+    
+    // Calculate height while maintaining aspect ratio
     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    pdf.addImage(dataUrl, 'PNG', 15, 35, pdfWidth, pdfHeight);
+    
+    // Check if we need to add a new page for very tall visualizations
+    const availablePageHeight = pdf.internal.pageSize.getHeight() - 40; // Account for margins and title
+    
+    if (pdfHeight > availablePageHeight) {
+      // Add the visualization to a new page to give it more room
+      pdf.addPage();
+      pdf.addImage(dataUrl, 'PNG', 15, 15, pdfWidth, pdfHeight);
+    } else {
+      // Add the visualization to the current page
+      pdf.addImage(dataUrl, 'PNG', 15, 35, pdfWidth, pdfHeight);
+    }
 
     // Add metadata if enabled
     if (includeMetadata && (selectedElements?.length || customNodes?.length)) {
-      const metadataY = 35 + pdfHeight + 10;
+      // Calculate position for metadata (either on first page after visualization or on a new page)
+      let metadataY;
+      
+      if (pdfHeight > availablePageHeight) {
+        // If visualization is on a new page, add metadata to a third page
+        pdf.addPage();
+        metadataY = 15;
+      } else {
+        // If visualization fits on first page, add metadata below it
+        metadataY = 35 + pdfHeight + 10;
+        
+        // If metadata would go off the page, add a new page
+        if (metadataY > availablePageHeight - 20) {
+          pdf.addPage();
+          metadataY = 15;
+        }
+      }
+      
       pdf.setFontSize(14);
       pdf.text('Elements in this visualization:', 15, metadataY);
       
