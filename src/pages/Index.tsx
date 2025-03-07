@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import SearchBar from '@/components/SearchBar';
@@ -7,9 +7,11 @@ import HistoryMap from '@/components/HistoryMap';
 import TimelineView from '@/components/TimelineView';
 import DetailCard from '@/components/DetailCard';
 import TextAnalyzer from '@/components/TextAnalyzer';
+import ExportDialog from '@/components/ExportDialog';
 import { Button } from '@/components/ui/button';
 import { HistoricalElement, MapNode, MapLink } from '@/types';
 import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { exportVisualization } from '@/services/exportService';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<'map' | 'timeline'>('map');
@@ -17,6 +19,9 @@ const Index = () => {
   const [customNodes, setCustomNodes] = useState<MapNode[] | null>(null);
   const [customLinks, setCustomLinks] = useState<MapLink[] | null>(null);
   const [showAnalyzer, setShowAnalyzer] = useState(false);
+  
+  // Refs for export functionality
+  const visualizationRef = useRef<HTMLDivElement>(null);
   
   const handleElementSelect = (element: HistoricalElement) => {
     setSelectedElement(element);
@@ -35,27 +40,37 @@ const Index = () => {
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
       <NavBar activeView={activeView} onViewChange={setActiveView} />
       
-      <div className="mb-4">
+      <div className="mb-4 flex justify-between items-center">
         <Button 
           onClick={() => setShowAnalyzer(!showAnalyzer)} 
           variant="outline" 
-          className="w-full mb-4 flex justify-between items-center"
+          className="flex-1 mr-2 flex justify-between items-center"
         >
           <span>{showAnalyzer ? "Hide AI Text Analyzer" : "Show AI Text Analyzer"}</span>
           {showAnalyzer ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
         
-        {showAnalyzer && (
-          <TextAnalyzer onAnalysisComplete={handleAnalysisComplete} />
-        )}
+        <ExportDialog 
+          containerRef={visualizationRef}
+          onExport={exportVisualization}
+          selectedElement={selectedElement}
+          customNodes={customNodes}
+          customLinks={customLinks}
+        />
       </div>
+      
+      {showAnalyzer && (
+        <div className="mb-4">
+          <TextAnalyzer onAnalysisComplete={handleAnalysisComplete} />
+        </div>
+      )}
       
       <div className="mb-8">
         <SearchBar onResultSelect={handleElementSelect} />
       </div>
       
       <div className="flex flex-col md:flex-row gap-8">
-        <div className="w-full md:w-2/3">
+        <div className="w-full md:w-2/3" ref={visualizationRef}>
           {activeView === 'map' ? (
             <HistoryMap 
               onElementSelect={handleElementSelect} 
