@@ -1,9 +1,10 @@
 
-import React, { useRef, useEffect, useState } from 'react';
-import { generateMapNodes, generateMapLinks, getElementById } from '@/utils/dummyData';
-import { HistoricalElement, MapNode, MapLink } from '@/types';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { generateMapNodes, generateMapLinks, getElementById, getTimelineItems } from '@/utils/dummyData';
+import { HistoricalElement, MapNode, MapLink, TimelineItem } from '@/types';
 import * as d3 from 'd3';
-import { Circle, Square, Diamond, Star } from 'lucide-react';
+import { Circle, Square, Diamond, Star, Clock, Play, Pause } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface HistoryMapProps {
   onElementSelect: (element: HistoricalElement) => void;
@@ -16,9 +17,26 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [nodes, setNodes] = useState<MapNode[]>(generateMapNodes());
   const [links, setLinks] = useState<MapLink[]>(generateMapLinks());
+  const [timelineItems, setTimelineItems] = useState<TimelineItem[]>(getTimelineItems());
+  
+  // Animation states
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [currentYear, setCurrentYear] = useState(1400);
+  const [targetYear, setTargetYear] = useState(2000);
+  const animationSpeedRef = useRef(50); // ms per year
+  const animationRef = useRef<number | null>(null);
   
   // D3 simulation reference
   const simulationRef = useRef<any>(null);
+  
+  // Years for timeline
+  const yearRange = useMemo(() => {
+    const years = timelineItems.map(item => item.year);
+    return {
+      min: Math.min(...years),
+      max: Math.max(...years)
+    };
+  }, [timelineItems]);
   
   // Function to get node color based on type with more meaningful associations
   const getNodeColor = (type: string) => {
@@ -58,6 +76,71 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     }
   };
 
+  // Calculate node visibility based on the current year
+  const calculateNodeVisibility = (node: MapNode, year: number): number => {
+    const nodeYear = node.element.year || parseInt(node.element.date?.split('-')[0] || '0');
+    
+    if (nodeYear === 0) return 1; // Always show nodes without years
+    if (nodeYear > year) return 0; // Hide future nodes
+    
+    // Fade in gradually for recently appeared nodes
+    const fadeInPeriod = 10; // Years
+    if (year - nodeYear < fadeInPeriod) {
+      return (year - nodeYear) / fadeInPeriod;
+    }
+    
+    return 1;
+  };
+  
+  // Calculate link visibility based on the current year and connected nodes
+  const calculateLinkVisibility = (link: MapLink, year: number, nodesMap: Map<string, MapNode>): number => {
+    const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+    const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+    
+    const sourceNode = nodesMap.get(sourceId);
+    const targetNode = nodesMap.get(targetId);
+    
+    if (!sourceNode || !targetNode) return 0;
+    
+    const sourceOpacity = calculateNodeVisibility(sourceNode, year);
+    const targetOpacity = calculateNodeVisibility(targetNode, year);
+    
+    return Math.min(sourceOpacity, targetOpacity);
+  };
+
+  // Animation step
+  const animateStep = () => {
+    if (currentYear >= targetYear) {
+      setIsAnimating(false);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      return;
+    }
+    
+    setCurrentYear(prev => Math.min(prev + 1, targetYear));
+    animationRef.current = requestAnimationFrame(animateStep);
+  };
+  
+  // Start/stop animation
+  const toggleAnimation = () => {
+    if (isAnimating) {
+      setIsAnimating(false);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+    } else {
+      setIsAnimating(true);
+      // Reset to beginning if we're at the end
+      if (currentYear >= targetYear) {
+        setCurrentYear(yearRange.min);
+      }
+      animationRef.current = requestAnimationFrame(animateStep);
+    }
+  };
+  
   // Initialize D3 visualization
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -111,6 +194,27 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           .attr("stop-color", color.color);
       });
     });
+    
+    // Create image filter for transparency with faded edges
+    const filter = defs.append("filter")
+      .attr("id", "image-fade")
+      .attr("x", "-50%")
+      .attr("y", "-50%")
+      .attr("width", "200%")
+      .attr("height", "200%");
+    
+    // Gaussian blur for faded edges
+    filter.append("feGaussianBlur")
+      .attr("in", "SourceAlpha")
+      .attr("stdDeviation", "3")
+      .attr("result", "blur");
+    
+    // Create composite with original image
+    const feMerge = filter.append("feMerge");
+    feMerge.append("feMergeNode")
+      .attr("in", "blur");
+    feMerge.append("feMergeNode")
+      .attr("in", "SourceGraphic");
     
     // Define arrow markers with gradient fill
     defs.selectAll("marker")
@@ -176,7 +280,8 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         if (d.relationship.type === "participated") return "5, 5";
         if (d.relationship.type === "documented") return "10, 2";
         return "1, 0";
-      });
+      })
+      .style("opacity", 0); // Start with 0 opacity for animation
 
     // Create node containers
     const nodeContainer = mainGroup.append("g")
@@ -184,6 +289,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       .data(nodes)
       .enter().append("g")
       .attr("class", "node-container")
+      .attr("opacity", 0) // Start with 0 opacity for animation
       .call(d3.drag<SVGGElement, MapNode>()
         .on("start", dragstarted)
         .on("drag", dragged)
@@ -196,6 +302,31 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       .attr("fill", d => `${getNodeColor(d.element.type)}33`) // Transparent version of node color
       .attr("filter", "url(#glow)")
       .attr("opacity", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 0.7 : 0.3);
+    
+    // Add transparent images with faded edges
+    nodeContainer.each(function(d) {
+      if (d.element.imageUrl) {
+        const node = d3.select(this);
+        
+        // Add a clipPath for circular images
+        const clipPathId = `clip-${d.id}`;
+        defs.append("clipPath")
+          .attr("id", clipPathId)
+          .append("circle")
+          .attr("r", 24);
+        
+        // Add the image
+        node.append("image")
+          .attr("xlink:href", d.element.imageUrl)
+          .attr("width", 50)
+          .attr("height", 50)
+          .attr("x", -25)
+          .attr("y", -25)
+          .attr("clip-path", `url(#${clipPathId})`)
+          .attr("filter", "url(#image-fade)")
+          .attr("class", "node-image");
+      }
+    });
     
     // Create SVG foreignObject to hold React components
     const nodeIcons = nodeContainer.append("foreignObject")
@@ -298,21 +429,21 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     }
     
     // Create glow filter
-    const filter = defs.append("filter")
+    const glowFilter = defs.append("filter")
       .attr("id", "glow")
       .attr("x", "-50%")
       .attr("y", "-50%")
       .attr("width", "200%")
       .attr("height", "200%");
       
-    filter.append("feGaussianBlur")
+    glowFilter.append("feGaussianBlur")
       .attr("stdDeviation", "3")
       .attr("result", "coloredBlur");
       
-    const feMerge = filter.append("feMerge");
-    feMerge.append("feMergeNode")
+    const glowMerge = glowFilter.append("feMerge");
+    glowMerge.append("feMergeNode")
       .attr("in", "coloredBlur");
-    feMerge.append("feMergeNode")
+    glowMerge.append("feMergeNode")
       .attr("in", "SourceGraphic");
     
     // Interactive events
@@ -490,6 +621,29 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       }
     }
   }, [selectedElementId, links]);
+  
+  // Update the visualization based on current year
+  useEffect(() => {
+    if (!svgRef.current) return;
+    
+    const svg = d3.select(svgRef.current);
+    
+    // Create a map of node IDs to nodes for easy lookup
+    const nodesMap = new Map<string, MapNode>();
+    nodes.forEach(node => nodesMap.set(node.id, node));
+    
+    // Update node visibility
+    svg.selectAll(".node-container")
+      .transition()
+      .duration(500)
+      .attr("opacity", d => calculateNodeVisibility(d, currentYear));
+    
+    // Update link visibility
+    svg.selectAll(".link")
+      .transition()
+      .duration(500)
+      .style("opacity", d => calculateLinkVisibility(d, currentYear, nodesMap));
+  }, [currentYear, nodes]);
 
   return (
     <div
@@ -527,6 +681,32 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           </div>
           <span className="text-xs ml-2">Concept</span>
         </div>
+      </div>
+      
+      {/* Time controls */}
+      <div className="absolute bottom-4 right-4 glass-card p-2 flex flex-col items-center">
+        <div className="flex items-center mb-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={toggleAnimation}
+          >
+            {isAnimating ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </Button>
+          <div className="flex items-center ml-2">
+            <Clock className="h-4 w-4 mr-1" />
+            <span className="text-sm font-medium">{currentYear}</span>
+          </div>
+        </div>
+        <input
+          type="range"
+          min={yearRange.min}
+          max={yearRange.max}
+          value={currentYear}
+          onChange={(e) => setCurrentYear(parseInt(e.target.value))}
+          className="w-full"
+        />
       </div>
     </div>
   );

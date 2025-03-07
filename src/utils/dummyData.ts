@@ -1,4 +1,3 @@
-
 import { HistoricalElement, Relationship } from "../types";
 
 export const historicalElements: HistoricalElement[] = [
@@ -7,6 +6,7 @@ export const historicalElements: HistoricalElement[] = [
     name: "Leonardo da Vinci",
     type: "person",
     date: "1452-04-15",
+    year: 1452,
     description: "Italian polymath of the Renaissance whose areas of interest included invention, drawing, painting, sculpture, architecture, science, music, mathematics, engineering, literature, anatomy, geology, astronomy, botany, paleontology, and cartography.",
     tags: ["Renaissance", "Art", "Science", "Italy"],
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Leonardo_self.jpg/800px-Leonardo_self.jpg"
@@ -16,6 +16,7 @@ export const historicalElements: HistoricalElement[] = [
     name: "Galileo Galilei",
     type: "person",
     date: "1564-02-15",
+    year: 1564,
     description: "Italian astronomer, physicist and engineer, sometimes described as a polymath, from Pisa. Galileo has been called the 'father of observational astronomy', the 'father of modern physics', the 'father of the scientific method', and the 'father of modern science'.",
     tags: ["Astronomy", "Physics", "Science", "Italy"],
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Justus_Sustermans_-_Portrait_of_Galileo_Galilei%2C_1636.jpg/800px-Justus_Sustermans_-_Portrait_of_Galileo_Galilei%2C_1636.jpg"
@@ -25,6 +26,7 @@ export const historicalElements: HistoricalElement[] = [
     name: "Marie Curie",
     type: "person",
     date: "1867-11-07",
+    year: 1867,
     description: "Polish and naturalized-French physicist and chemist who conducted pioneering research on radioactivity. She was the first woman to win a Nobel Prize, the first person to win a Nobel Prize twice, and the only person to win a Nobel Prize in two scientific fields.",
     tags: ["Physics", "Chemistry", "Radioactivity", "Nobel Prize"],
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Marie_Curie_c1920.jpg/800px-Marie_Curie_c1920.jpg"
@@ -34,6 +36,7 @@ export const historicalElements: HistoricalElement[] = [
     name: "Renaissance",
     type: "event",
     date: "1400",
+    year: 1400,
     description: "The Renaissance was a period in European history marking the transition from the Middle Ages to modernity and covering the 15th and 16th centuries. In addition to the standard periodization, proponents of a 'long Renaissance' may put its beginning in the 14th century and its end in the 17th century.",
     tags: ["Europe", "Art", "Science", "Culture", "History"],
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Raffaello%2C_scuola_di_atene_01.jpg/1024px-Raffaello%2C_scuola_di_atene_01.jpg"
@@ -43,6 +46,7 @@ export const historicalElements: HistoricalElement[] = [
     name: "Scientific Revolution",
     type: "event",
     date: "1550",
+    year: 1550,
     description: "The Scientific Revolution was a series of events that marked the emergence of modern science during the early modern period, when developments in mathematics, physics, astronomy, biology and chemistry transformed the views of society about nature.",
     tags: ["Science", "History", "Astronomy", "Physics"],
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Solvay_conference_1927.jpg/1024px-Solvay_conference_1927.jpg"
@@ -52,6 +56,7 @@ export const historicalElements: HistoricalElement[] = [
     name: "World War II",
     type: "event",
     date: "1939-09-01",
+    year: 1939,
     description: "World War II, also known as the Second World War, was a global war that lasted from 1939 to 1945. It involved the vast majority of the world's countries—including all the great powers—forming two opposing military alliances: the Allies and the Axis.",
     tags: ["War", "History", "Politics", "Military"],
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Allied_leaders_WW2.jpg/1024px-Allied_leaders_WW2.jpg"
@@ -61,6 +66,7 @@ export const historicalElements: HistoricalElement[] = [
     name: "Mona Lisa",
     type: "document",
     date: "1503",
+    year: 1503,
     description: "The Mona Lisa is a half-length portrait painting by Italian artist Leonardo da Vinci. Considered an archetypal masterpiece of the Italian Renaissance, it has been described as 'the best known, the most visited, the most written about, the most sung about, the most parodied work of art in the world'.",
     tags: ["Art", "Painting", "Renaissance", "Italy"],
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/800px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg"
@@ -70,6 +76,7 @@ export const historicalElements: HistoricalElement[] = [
     name: "Dialogue Concerning the Two Chief World Systems",
     type: "document",
     date: "1632",
+    year: 1632,
     description: "The Dialogue Concerning the Two Chief World Systems is a 1632 Italian-language book by Galileo Galilei comparing the Copernican system with the traditional Ptolemaic system. It was translated into Latin as Systema cosmicum in 1635 by Matthias Bernegger.",
     tags: ["Astronomy", "Science", "Book", "Italy"],
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Galileo-dialogues.jpg/800px-Galileo-dialogues.jpg"
@@ -79,6 +86,7 @@ export const historicalElements: HistoricalElement[] = [
     name: "Heliocentrism",
     type: "concept",
     date: "1543",
+    year: 1543,
     description: "Heliocentrism is the astronomical model in which the Earth and planets revolve around the Sun at the center of the universe. Historically, heliocentrism was opposed to geocentrism, which placed the Earth at the center.",
     tags: ["Astronomy", "Science", "Physics", "Model"],
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Copernican_heliocentrism_diagram-2.jpg/1024px-Copernican_heliocentrism_diagram-2.jpg"
@@ -88,6 +96,7 @@ export const historicalElements: HistoricalElement[] = [
     name: "Radioactivity",
     type: "concept",
     date: "1896",
+    year: 1896,
     description: "Radioactivity is the spontaneous emission of radiation from the unstable nucleus of an atom. This phenomenon was discovered in 1896 by Henri Becquerel and further studied by Marie Curie and Pierre Curie.",
     tags: ["Physics", "Chemistry", "Science", "Nuclear"],
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Radioactive.svg/1024px-Radioactive.svg.png"
@@ -182,7 +191,9 @@ export const generateMapNodes = () => {
       id: element.id,
       x,
       y,
-      element
+      element,
+      originalX: x,
+      originalY: y
     };
   });
 };

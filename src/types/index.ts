@@ -9,6 +9,7 @@ export interface HistoricalElement {
   description: string;
   tags: string[];
   imageUrl?: string;
+  year?: number; // Extracted year for timeline/animation
 }
 
 export interface Relationship {
@@ -33,6 +34,12 @@ export interface MapNode {
   fy?: number | null;
   vx?: number;
   vy?: number;
+  // Added for animations
+  originalX?: number;
+  originalY?: number;
+  targetX?: number;
+  targetY?: number;
+  animating?: boolean;
 }
 
 export interface MapLink {
@@ -40,4 +47,7 @@ export interface MapLink {
   source: string | MapNode;
   target: string | MapNode;
   relationship: Relationship;
+  // Added for animations
+  animating?: boolean;
+  opacity?: number;
 }
