@@ -25,11 +25,11 @@ export const generateMap = async ({
     console.log('Generating map with params:', { mapType, topic, details, language });
     
     // Construct the URL with explicit string interpolation for validation
-    const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-map`;
+    const functionUrl = `https://bobmufpidfiukwphihmh.supabase.co/functions/v1/generate-map`;
     console.log('Function URL:', functionUrl);
     
     // Log auth token (just first few chars for security)
-    const authToken = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const authToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvYm11ZnBpZGZpdWt3cGhpaG1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEzMzg3MjIsImV4cCI6MjA1NjkxNDcyMn0.rgnO1t5uj1mE8v83Xq8vWOHk6grDpmzHQOuTub5HxDM";
     console.log('Auth token (first 5 chars):', authToken?.substring(0, 5));
     
     // Make the request with improved error handling
