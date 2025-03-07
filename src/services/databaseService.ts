@@ -20,7 +20,7 @@ export const fetchHistoricalElements = async (): Promise<HistoricalElement[]> =>
     return data.map(item => ({
       id: item.id,
       name: item.name,
-      type: item.type,
+      type: item.type as HistoricalElement['type'],
       date: item.date,
       description: item.description,
       tags: item.tags,
@@ -55,7 +55,7 @@ export const createHistoricalElement = async (element: Omit<HistoricalElement, '
     return {
       id: data.id,
       name: data.name,
-      type: data.type,
+      type: data.type as HistoricalElement['type'],
       date: data.date,
       description: data.description,
       tags: data.tags,
@@ -92,7 +92,7 @@ export const updateHistoricalElement = async (id: string, updates: Partial<Histo
     return {
       id: data.id,
       name: data.name,
-      type: data.type,
+      type: data.type as HistoricalElement['type'],
       date: data.date,
       description: data.description,
       tags: data.tags,
@@ -137,7 +137,7 @@ export const fetchRelationships = async (): Promise<Relationship[]> => {
       sourceId: item.source_id,
       targetId: item.target_id,
       description: item.description || '',
-      type: item.type
+      type: item.type as Relationship['type']
     }));
   } catch (error: any) {
     console.error('Error fetching relationships:', error);
@@ -166,7 +166,7 @@ export const createRelationship = async (relationship: Omit<Relationship, 'id'>)
       sourceId: data.source_id,
       targetId: data.target_id,
       description: data.description || '',
-      type: data.type
+      type: data.type as Relationship['type']
     };
   } catch (error: any) {
     console.error('Error creating relationship:', error);
@@ -197,7 +197,7 @@ export const updateRelationship = async (id: string, updates: Partial<Relationsh
       sourceId: data.source_id,
       targetId: data.target_id,
       description: data.description || '',
-      type: data.type
+      type: data.type as Relationship['type']
     };
   } catch (error: any) {
     console.error('Error updating relationship:', error);
@@ -373,7 +373,7 @@ export const fetchMapNodes = async (mapId: string): Promise<MapNode[]> => {
         element: {
           id: element.id,
           name: element.name,
-          type: element.type,
+          type: element.type as HistoricalElement['type'],
           date: element.date,
           description: element.description,
           tags: element.tags,
@@ -413,7 +413,7 @@ export const fetchMapLinks = async (mapId: string): Promise<MapLink[]> => {
           sourceId: relationship.source_id,
           targetId: relationship.target_id,
           description: relationship.description || '',
-          type: relationship.type
+          type: relationship.type as Relationship['type']
         }
       };
     });

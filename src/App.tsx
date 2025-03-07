@@ -54,10 +54,10 @@ const App = () => (
               </PrivateRoute>
             } />
             
-            {/* Redirect to auth if path is "login" */}
+            {/* Redirect /login to /auth */}
             <Route path="/login" element={<Navigate to="/auth" replace />} />
             
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            {/* Catch-all route for not found pages */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
