@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -11,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Globe, Map as MapIcon, Clock, TrendingUp, Mountain } from 'lucide-react';
-import { generateMap } from '@/services/aiService';
 import { MapNode, MapLink } from '@/types';
 
 type MapType = 'country' | 'continent' | 'historical' | 'geography' | 'economic';
@@ -19,8 +17,9 @@ type MapType = 'country' | 'continent' | 'historical' | 'geography' | 'economic'
 interface GeneratedMap {
   title: string;
   description: string;
-  nodes: MapNode[];
-  links: MapLink[];
+  mapUrl: string;
+  nodes?: MapNode[];
+  links?: MapLink[];
 }
 
 const MapGenerator = () => {
@@ -48,7 +47,8 @@ const MapGenerator = () => {
     setDataPoints(dataPoints.filter(p => p !== point));
   };
 
-  const generateMapData = async () => {
+  // Function to fetch map from Wikimedia Commons
+  const getMapFromWikimedia = async () => {
     if (!region.trim()) {
       toast.error(language === 'ar' ? 'الرجاء إدخال اسم المنطقة' : 'Please enter a region name');
       return;
@@ -56,23 +56,61 @@ const MapGenerator = () => {
 
     setIsGenerating(true);
     try {
-      const result = await generateMap({
-        mapType,
-        topic: region,
-        details: details || dataPoints.join(', '),
-        language
-      });
-
-      if (result) {
-        setGeneratedMap(result);
-        setCustomName(result.title || region);
-        setCustomDescription(result.description || '');
-        toast.success(language === 'ar' ? 'تم إنشاء الخريطة بنجاح!' : 'Map generated successfully!');
-      } else {
-        throw new Error(language === 'ar' ? 'فشل في إنشاء بيانات الخريطة' : 'Failed to generate map data');
+      // Create a search query based on map type and region
+      let searchQuery = `${region} map`;
+      
+      // Add additional context based on map type
+      if (mapType === 'historical') {
+        searchQuery += ` historical ${details}`;
+      } else if (mapType === 'economic') {
+        searchQuery += ' economic';
+      } else if (mapType === 'geography') {
+        searchQuery += ' geographical';
+      } else if (mapType === 'continent') {
+        searchQuery = `${region} continent map`;
       }
+      
+      // Wikimedia API call to search for maps
+      const response = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&srnamespace=6&format=json&origin=*`);
+      
+      if (!response.ok) {
+        throw new Error(language === 'ar' ? 'فشل في الاتصال بـ Wikimedia' : 'Failed to connect to Wikimedia');
+      }
+      
+      const data = await response.json();
+      
+      if (data.query.search.length === 0) {
+        throw new Error(language === 'ar' ? 'لم يتم العثور على خرائط مطابقة' : 'No matching maps found');
+      }
+      
+      // Get the first result
+      const firstResult = data.query.search[0];
+      const title = firstResult.title.replace('File:', '');
+      
+      // Get the image info (including URL)
+      const imageInfoResponse = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(firstResult.title)}&prop=imageinfo&iiprop=url&format=json&origin=*`);
+      
+      if (!imageInfoResponse.ok) {
+        throw new Error(language === 'ar' ? 'فشل في الحصول على معلومات الصورة' : 'Failed to get image information');
+      }
+      
+      const imageData = await imageInfoResponse.json();
+      const pages = imageData.query.pages;
+      const page = Object.values(pages)[0];
+      const imageUrl = page.imageinfo[0].url;
+      
+      setGeneratedMap({
+        title: region,
+        description: details || `${mapType.charAt(0).toUpperCase() + mapType.slice(1)} map of ${region}`,
+        mapUrl: imageUrl
+      });
+      
+      setCustomName(region);
+      setCustomDescription(details || `${mapType.charAt(0).toUpperCase() + mapType.slice(1)} map of ${region}`);
+      
+      toast.success(language === 'ar' ? 'تم إنشاء الخريطة بنجاح!' : 'Map generated successfully!');
     } catch (error) {
-      console.error('Error generating map:', error);
+      console.error('Error fetching map:', error);
       toast.error(error.message || (language === 'ar' ? 'حدث خطأ أثناء إنشاء الخريطة' : 'An error occurred while generating the map'));
     } finally {
       setIsGenerating(false);
@@ -201,13 +239,13 @@ const MapGenerator = () => {
         )}
         
         <Button 
-          onClick={generateMapData} 
+          onClick={getMapFromWikimedia} 
           className="w-full mt-4" 
           disabled={isGenerating}
         >
           {isGenerating 
-            ? (language === 'ar' ? 'جاري الإنشاء...' : 'Generating...') 
-            : (language === 'ar' ? 'إنشاء الخريطة' : 'Generate Map')}
+            ? (language === 'ar' ? 'جاري البحث...' : 'Searching...') 
+            : (language === 'ar' ? 'بحث عن خريطة' : 'Search for Map')}
         </Button>
       </div>
     );
@@ -220,23 +258,33 @@ const MapGenerator = () => {
       <div className="space-y-6" dir={language === 'ar' ? 'rtl' : 'ltr'}>
         <div className="bg-slate-800 p-6 rounded-lg">
           <h3 className="text-xl font-bold mb-4">{language === 'ar' ? 'معاينة الخريطة' : 'Map Preview'}</h3>
-          <div className="h-64 bg-slate-700 rounded-md flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-4xl mb-2">
-                {mapType === 'country' ? <Globe /> : 
-                 mapType === 'continent' ? <Globe /> :
-                 mapType === 'historical' ? <Clock /> :
-                 mapType === 'geography' ? <Mountain /> :
-                 <TrendingUp />}
-              </div>
-              <p>{language === 'ar' ? 'ستظهر هنا الخريطة المرئية' : 'Map visualization would render here'}</p>
-              <p className="text-sm text-gray-400">
+          {generatedMap.mapUrl ? (
+            <div className="overflow-hidden rounded-md">
+              <img 
+                src={generatedMap.mapUrl} 
+                alt={generatedMap.title} 
+                className="w-full h-auto max-h-96 object-contain"
+              />
+              <p className="text-sm text-gray-400 mt-2">
                 {language === 'ar' 
-                  ? `العناصر: ${generatedMap.nodes.length}، الروابط: ${generatedMap.links.length}`
-                  : `Nodes: ${generatedMap.nodes.length}, Links: ${generatedMap.links.length}`}
+                  ? 'المصدر: Wikimedia Commons'
+                  : 'Source: Wikimedia Commons'}
               </p>
             </div>
-          </div>
+          ) : (
+            <div className="h-64 bg-slate-700 rounded-md flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-4xl mb-2">
+                  {mapType === 'country' ? <Globe /> : 
+                   mapType === 'continent' ? <Globe /> :
+                   mapType === 'historical' ? <Clock /> :
+                   mapType === 'geography' ? <Mountain /> :
+                   <TrendingUp />}
+                </div>
+                <p>{language === 'ar' ? 'لم يتم العثور على خريطة' : 'No map found'}</p>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="space-y-4">
@@ -294,8 +342,8 @@ const MapGenerator = () => {
         </h1>
         <p className="text-gray-400">
           {language === 'ar' 
-            ? 'إنشاء وتخصيص أنواع مختلفة من الخرائط لمشاريعك' 
-            : 'Generate and customize different types of maps for your projects'}
+            ? 'البحث عن خرائط من Wikimedia Commons وتخصيصها لمشاريعك' 
+            : 'Search for maps from Wikimedia Commons and customize them for your projects'}
         </p>
       </div>
 
@@ -306,31 +354,31 @@ const MapGenerator = () => {
               'country', 
               language === 'ar' ? 'خريطة الدولة' : 'Country', 
               <Globe size={20} />, 
-              language === 'ar' ? 'إنشاء خريطة مفصلة لدولة معينة' : 'Generate a detailed map of a specific country'
+              language === 'ar' ? 'البحث عن خريطة مفصلة لدولة معينة' : 'Search for a detailed map of a specific country'
             )}
             {renderMapTypeCard(
               'continent', 
               language === 'ar' ? 'خريطة القارة' : 'Continent', 
               <Globe size={20} />, 
-              language === 'ar' ? 'إنشاء خريطة تعرض قارة كاملة' : 'Create a map showing an entire continent'
+              language === 'ar' ? 'البحث عن خريطة تعرض قارة كاملة' : 'Search for a map showing an entire continent'
             )}
             {renderMapTypeCard(
               'historical', 
               language === 'ar' ? 'خريطة تاريخية' : 'Historical', 
               <Clock size={20} />, 
-              language === 'ar' ? 'تصور الفترات والأحداث التاريخية' : 'Visualize historical periods and events'
+              language === 'ar' ? 'البحث عن خرائط للفترات والأحداث التاريخية' : 'Search for maps of historical periods and events'
             )}
             {renderMapTypeCard(
               'geography', 
               language === 'ar' ? 'خريطة جغرافية' : 'Geography', 
               <Mountain size={20} />, 
-              language === 'ar' ? 'عرض المعالم الجغرافية مثل الجبال والأنهار' : 'Show geographical features like mountains, rivers'
+              language === 'ar' ? 'البحث عن خرائط تعرض المعالم الجغرافية' : 'Search for maps showing geographical features'
             )}
             {renderMapTypeCard(
               'economic', 
               language === 'ar' ? 'خريطة اقتصادية' : 'Economic', 
               <TrendingUp size={20} />, 
-              language === 'ar' ? 'توضيح البيانات الاقتصادية وطرق التجارة' : 'Illustrate economic data and trade routes'
+              language === 'ar' ? 'البحث عن خرائط توضح البيانات الاقتصادية' : 'Search for maps illustrating economic data'
             )}
           </div>
         </div>
@@ -338,7 +386,7 @@ const MapGenerator = () => {
         <div className="md:col-span-2">
           <Tabs defaultValue={generatedMap ? "preview" : "generator"}>
             <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="generator">{language === 'ar' ? 'المُنشئ' : 'Generator'}</TabsTrigger>
+              <TabsTrigger value="generator">{language === 'ar' ? 'البحث' : 'Search'}</TabsTrigger>
               <TabsTrigger value="preview" disabled={!generatedMap}>
                 {language === 'ar' ? 'معاينة وتخصيص' : 'Preview & Customize'}
               </TabsTrigger>
