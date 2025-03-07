@@ -1,4 +1,3 @@
-
 export type HistoricalElementType = 'person' | 'event' | 'document' | 'concept' | 'term';
 
 export interface HistoricalElement {
@@ -29,24 +28,12 @@ export interface MapNode {
   x: number;
   y: number;
   element: HistoricalElement;
-  // Added for D3 force simulation
+  isLocked?: boolean;
   fx?: number | null;
   fy?: number | null;
-  vx?: number;
-  vy?: number;
-  // Added for animations
-  originalX?: number;
-  originalY?: number;
-  targetX?: number;
-  targetY?: number;
-  animating?: boolean;
-  // Added for relationship layers
-  layer?: number; // 1 = direct, 2 = secondary, 3 = tertiary
-  opacity?: number;
-  // Added for node editing
   isEditing?: boolean;
-  // Added for locked/selected state
-  isLocked?: boolean;
+  layer?: number;
+  opacity?: number;
 }
 
 export interface MapLink {
@@ -54,11 +41,8 @@ export interface MapLink {
   source: string | MapNode;
   target: string | MapNode;
   relationship: Relationship;
-  // Added for animations
-  animating?: boolean;
+  layer?: number;
   opacity?: number;
-  // Added for relationship layers
-  layer?: number; // 1 = direct, 2 = secondary, 3 = tertiary
 }
 
 export interface NodeFormData {

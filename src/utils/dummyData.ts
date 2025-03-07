@@ -1,4 +1,4 @@
-import { HistoricalElement, HistoricalEvent, HistoricalPerson, HistoricalDocument, HistoricalConcept, Relationship, TimelineItem, MapNode, MapLink } from '@/types';
+import { HistoricalElement, HistoricalElementType, MapNode, MapLink, Relationship, TimelineItem } from '@/types';
 
 const historicalPersons: HistoricalPerson[] = [
   { id: 'person_1', name: 'Cleopatra', type: 'person', description: 'Last active ruler of the Ptolemaic Kingdom of Egypt.', tags: ['ruler', 'egypt', 'ptolemaic'] },
@@ -100,51 +100,28 @@ export const getElementById = (id: string): HistoricalElement | undefined => {
 };
 
 export const generateMapLinks = (): MapLink[] => {
-  return getAllRelationships().map(r => ({
-    id: r.id,
-    source: r.sourceId,
-    target: r.targetId,
-    relationship: r,
+  return relationships.map(relationship => ({
+    id: relationship.id,
+    source: relationship.sourceId,
+    target: relationship.targetId,
+    relationship,
     layer: 1,
     opacity: 1
   }));
 };
 
-// When updating the interfaces for MapNode, make sure the functions that create nodes also include these properties
 export const generateMapNodes = (): MapNode[] => {
-  const nodes: MapNode[] = [];
-  const elements = [
-    ...getHistoricalPersons(),
-    ...getHistoricalEvents(),
-    ...getHistoricalDocuments(),
-    ...getHistoricalConcepts()
-  ];
-  
-  const centerX = 500;
-  const centerY = 300;
-  const radius = 200;
-  
-  elements.forEach((element, i) => {
-    const angle = (i / elements.length) * Math.PI * 2;
-    const x = centerX + Math.cos(angle) * radius;
-    const y = centerY + Math.sin(angle) * radius;
-    
-    nodes.push({
-      id: element.id,
-      x,
-      y,
-      element,
-      originalX: x,
-      originalY: y,
-      layer: 1, // Add layer property
-      opacity: 1 // Add opacity property
-    });
-  });
-  
-  return nodes;
+  return elements.map(element => ({
+    id: element.id,
+    x: Math.random() * 800,
+    y: Math.random() * 600,
+    element,
+    layer: 1,
+    opacity: 1
+  }));
 };
 
-export function generateExtendedMapData(centralNodeId: string, maxDepth = 2) {
+export const generateExtendedMapData = (centralElementId: string, depth: number = 2): { nodes: MapNode[], links: MapLink[] } => {
   const allElements = [
     ...getHistoricalPersons(),
     ...getHistoricalEvents(),
@@ -154,7 +131,7 @@ export function generateExtendedMapData(centralNodeId: string, maxDepth = 2) {
   
   const allRelationships = getAllRelationships();
   
-  const centralElement = allElements.find(el => el.id === centralNodeId);
+  const centralElement = allElements.find(el => el.id === centralElementId);
   if (!centralElement) {
     return { nodes: generateMapNodes(), links: generateMapLinks() };
   }
@@ -164,13 +141,12 @@ export function generateExtendedMapData(centralNodeId: string, maxDepth = 2) {
   const processedNodeIds = new Set<string>();
   const processedLinkIds = new Set<string>();
   
-  // Helper function to add a node if it's not already added
-  const addNodeIfNew = (element: HistoricalElement, depth: number) => {
+  const addNodeIfNew = (element: HistoricalElement, currentDepth: number) => {
     if (processedNodeIds.has(element.id)) return;
     
     const angle = Math.random() * Math.PI * 2;
-    const radius = 150 + depth * 100; // Position nodes in concentric circles based on depth
-    const jitter = (Math.random() - 0.5) * 50; // Add some randomness
+    const radius = 150 + currentDepth * 100;
+    const jitter = (Math.random() - 0.5) * 50;
     
     const x = 500 + Math.cos(angle) * (radius + jitter);
     const y = 300 + Math.sin(angle) * (radius + jitter);
@@ -182,36 +158,29 @@ export function generateExtendedMapData(centralNodeId: string, maxDepth = 2) {
       element,
       originalX: x,
       originalY: y,
-      layer: depth, // Set layer based on relationship depth
-      opacity: depth === 1 ? 1 : depth === 2 ? 0.8 : depth === 3 ? 0.6 : 0.4 // Set opacity based on depth
+      layer: currentDepth,
+      opacity: currentDepth === 1 ? 1 : currentDepth === 2 ? 0.8 : depth === 3 ? 0.6 : 0.4
     };
     
     nodes.push(node);
     processedNodeIds.add(element.id);
   };
   
-  // Add the central node
   addNodeIfNew(centralElement, 1);
   
-  // Process relationships recursively up to maxDepth
   const processElementRelationships = (elementId: string, currentDepth: number) => {
-    if (currentDepth > maxDepth) return;
+    if (currentDepth > depth) return;
     
-    // Find all relationships where this element is either source or target
     allRelationships.forEach(rel => {
       if (rel.sourceId === elementId || rel.targetId === elementId) {
-        // Avoid adding the same link twice
         if (processedLinkIds.has(rel.id)) return;
         
-        // Get the other element in the relationship
         const otherId = rel.sourceId === elementId ? rel.targetId : rel.sourceId;
         const otherElement = allElements.find(el => el.id === otherId);
         
         if (otherElement) {
-          // Add the other node if it's not already added
           addNodeIfNew(otherElement, currentDepth);
           
-          // Add the link
           const link: MapLink = {
             id: rel.id,
             source: rel.sourceId,
@@ -224,15 +193,34 @@ export function generateExtendedMapData(centralNodeId: string, maxDepth = 2) {
           links.push(link);
           processedLinkIds.add(rel.id);
           
-          // Process relationships for the other element
           processElementRelationships(otherId, currentDepth + 1);
         }
       }
     });
   };
   
-  // Start processing from the central node
-  processElementRelationships(centralNodeId, 1);
+  processElementRelationships(centralElementId, 1);
   
   return { nodes, links };
-}
+};
+
+export const searchElements = (query: string): HistoricalElement[] => {
+  return [
+    ...getHistoricalPersons(),
+    ...getHistoricalEvents(),
+    ...getHistoricalDocuments(),
+    ...getHistoricalConcepts()
+  ].filter(element => element.name.toLowerCase().includes(query.toLowerCase()));
+};
+
+export const getRelatedElements = (elementId: string): HistoricalElement[] => {
+  return relationships.filter(rel => rel.sourceId === elementId || rel.targetId === elementId).map(rel => getElementById(rel.sourceId || rel.targetId)!);
+};
+
+export const getRelationshipsByElementId = (elementId: string): Relationship[] => {
+  return relationships.filter(rel => rel.sourceId === elementId || rel.targetId === elementId);
+};
+
+export const getRelationshipsByDepth = (elementId: string, depth: number = 1): Relationship[] => {
+  return relationships.filter(rel => rel.sourceId === elementId || rel.targetId === elementId).filter(rel => rel.relationship.layer === depth);
+};

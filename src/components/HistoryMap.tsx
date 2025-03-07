@@ -16,15 +16,22 @@ import { useToast } from "@/hooks/use-toast";
 interface HistoryMapProps {
   onElementSelect: (element: HistoricalElement) => void;
   selectedElementId?: string;
+  customNodes?: MapNode[] | null;
+  customLinks?: MapLink[] | null;
 }
 
-const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElementId }) => {
+const HistoryMap: React.FC<HistoryMapProps> = ({ 
+  onElementSelect, 
+  selectedElementId,
+  customNodes = null,
+  customLinks = null
+}) => {
   const { toast } = useToast();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [nodes, setNodes] = useState<MapNode[]>(generateMapNodes());
-  const [links, setLinks] = useState<MapLink[]>(generateMapLinks());
+  const [nodes, setNodes] = useState<MapNode[]>(customNodes || generateMapNodes());
+  const [links, setLinks] = useState<MapLink[]>(customLinks || generateMapLinks());
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>(getTimelineItems());
   
   const [isCreatingNode, setIsCreatingNode] = useState(false);
@@ -383,7 +390,17 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   };
 
   useEffect(() => {
-    if (showExtendedRelationships && selectedElementId) {
+    if (customNodes) {
+      setNodes(customNodes);
+    }
+    
+    if (customLinks) {
+      setLinks(customLinks);
+    }
+  }, [customNodes, customLinks]);
+
+  useEffect(() => {
+    if (showExtendedRelationships && selectedElementId && !customNodes) {
       const { nodes: extendedNodes, links: extendedLinks } = generateExtendedMapData(selectedElementId, maxRelationshipDepth);
       
       const updatedNodes = extendedNodes.map(node => {
@@ -400,7 +417,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       
       setNodes(updatedNodes);
       setLinks(extendedLinks);
-    } else {
+    } else if (!customNodes && !customLinks) {
       const basicNodes = generateMapNodes();
       
       if (selectedElementId) {
@@ -422,7 +439,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       
       setLinks(generateMapLinks());
     }
-  }, [selectedElementId, maxRelationshipDepth, showExtendedRelationships]);
+  }, [selectedElementId, maxRelationshipDepth, showExtendedRelationships, customNodes, customLinks]);
 
   const handleBackgroundClick = (event: React.MouseEvent<SVGRectElement>) => {
     if (isCreatingNode) {
@@ -846,7 +863,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         connectIconSvg.setAttribute("viewBox", "0 0 24 24");
         
         const connectIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        connectIconPath.setAttribute("d", "M8 12h8M12 8v8");
+        connectIconPath.setAttribute("d", "M8 12h8M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6");
         connectIconPath.setAttribute("fill", "none");
         connectIconPath.setAttribute("stroke", "#0EA5E9");
         connectIconPath.setAttribute("stroke-width", "2");
@@ -1264,6 +1281,29 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           </Tooltip>
         </TooltipProvider>
       </div>
+      
+      {customNodes && customLinks && (
+        <div className="absolute top-4 left-4 z-10 bg-slate-800/90 text-white px-3 py-2 rounded-md">
+          <p className="text-xs text-slate-400">Showing AI-generated visualization</p>
+          <div className="flex items-center gap-2 mt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-7 bg-slate-700 hover:bg-slate-600 border-slate-600"
+              onClick={() => {
+                setNodes(generateMapNodes());
+                setLinks(generateMapLinks());
+                toast({
+                  title: "Reverted to default data",
+                  description: "Now showing the default historical dataset"
+                });
+              }}
+            >
+              Reset to Default Data
+            </Button>
+          </div>
+        </div>
+      )}
       
       {isAnimating && (
         <div className="absolute top-4 left-4 bg-slate-800 text-white px-3 py-1 rounded-md flex items-center">

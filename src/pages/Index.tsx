@@ -6,13 +6,17 @@ import SearchBar from '@/components/SearchBar';
 import HistoryMap from '@/components/HistoryMap';
 import TimelineView from '@/components/TimelineView';
 import DetailCard from '@/components/DetailCard';
+import TextAnalyzer from '@/components/TextAnalyzer';
 import { Button } from '@/components/ui/button';
-import { HistoricalElement } from '@/types';
-import { FileText } from 'lucide-react';
+import { HistoricalElement, MapNode, MapLink } from '@/types';
+import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<'map' | 'timeline'>('map');
   const [selectedElement, setSelectedElement] = useState<HistoricalElement | null>(null);
+  const [customNodes, setCustomNodes] = useState<MapNode[] | null>(null);
+  const [customLinks, setCustomLinks] = useState<MapLink[] | null>(null);
+  const [showAnalyzer, setShowAnalyzer] = useState(false);
   
   const handleElementSelect = (element: HistoricalElement) => {
     setSelectedElement(element);
@@ -22,9 +26,29 @@ const Index = () => {
     setSelectedElement(null);
   };
   
+  const handleAnalysisComplete = (result: { nodes: MapNode[], links: MapLink[] }) => {
+    setCustomNodes(result.nodes);
+    setCustomLinks(result.links);
+  };
+  
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
       <NavBar activeView={activeView} onViewChange={setActiveView} />
+      
+      <div className="mb-4">
+        <Button 
+          onClick={() => setShowAnalyzer(!showAnalyzer)} 
+          variant="outline" 
+          className="w-full mb-4 flex justify-between items-center"
+        >
+          <span>{showAnalyzer ? "Hide AI Text Analyzer" : "Show AI Text Analyzer"}</span>
+          {showAnalyzer ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
+        
+        {showAnalyzer && (
+          <TextAnalyzer onAnalysisComplete={handleAnalysisComplete} />
+        )}
+      </div>
       
       <div className="mb-8">
         <SearchBar onResultSelect={handleElementSelect} />
@@ -36,6 +60,8 @@ const Index = () => {
             <HistoryMap 
               onElementSelect={handleElementSelect} 
               selectedElementId={selectedElement?.id}
+              customNodes={customNodes}
+              customLinks={customLinks}
             />
           ) : (
             <TimelineView onElementSelect={handleElementSelect} />
@@ -73,9 +99,20 @@ const Index = () => {
                   <p className="text-sm">Concepts</p>
                 </div>
               </div>
-              <p className="mt-6 text-sm text-muted-foreground">
-                Click on any node in the map or entry in the timeline to view details
-              </p>
+              
+              {!showAnalyzer && (
+                <div className="mt-6 p-4 border border-dashed border-slate-700 rounded-lg bg-slate-800/50 text-sm text-slate-300">
+                  <p>Try our new <span className="font-medium text-indigo-400">AI Text Analyzer</span> feature!</p>
+                  <p className="mt-1">Enter any historical text and generate an interactive knowledge graph.</p>
+                  <Button 
+                    onClick={() => setShowAnalyzer(true)} 
+                    size="sm" 
+                    className="mt-3 w-full bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Open AI Text Analyzer
+                  </Button>
+                </div>
+              )}
               
               <div className="mt-8 border-t pt-6 w-full">
                 <p className="font-medium mb-3">Try our new Template Builder</p>
