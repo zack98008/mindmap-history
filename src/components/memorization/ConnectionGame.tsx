@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { getHistoricalEvents, getHistoricalPeople, getHistoricalDocuments, getHistoricalConcepts } from '@/utils/dummyData';
+import { getHistoricalEvents, getHistoricalPersons, getHistoricalDocuments, getHistoricalConcepts } from '@/utils/dummyData';
 import { HistoricalElement } from '@/types';
 import { motion } from 'framer-motion';
 import { Shuffle, Brain, Award, RotateCcw } from 'lucide-react';
@@ -27,19 +26,16 @@ const ConnectionGame = () => {
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
 
-  // Initialize game on component mount
   useEffect(() => {
     initializeGame();
   }, []);
 
   const initializeGame = () => {
-    // Get a subset of each type of historical element
-    const people = getHistoricalPeople().slice(0, 4);
+    const people = getHistoricalPersons().slice(0, 4);
     const events = getHistoricalEvents().slice(0, 4);
     const documents = getHistoricalDocuments().slice(0, 4);
     const concepts = getHistoricalConcepts().slice(0, 4);
 
-    // Set up the connections
     setConnections({
       group1: people,
       group2: events,
@@ -47,7 +43,6 @@ const ConnectionGame = () => {
       group4: concepts
     });
 
-    // Reset game state
     setSelectedTiles([]);
     setSolvedGroups([]);
     setAttempts(4);
@@ -55,7 +50,6 @@ const ConnectionGame = () => {
     setGameWon(false);
   };
 
-  // Shuffle all tiles for display
   const getShuffledTiles = () => {
     const allTiles = [
       ...connections.group1,
@@ -64,7 +58,6 @@ const ConnectionGame = () => {
       ...connections.group4
     ].filter(tile => !solvedGroups.includes(getGroupForElement(tile)));
 
-    // Fisher-Yates shuffle
     for (let i = allTiles.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [allTiles[i], allTiles[j]] = [allTiles[j], allTiles[i]];
@@ -73,7 +66,6 @@ const ConnectionGame = () => {
     return allTiles;
   };
 
-  // Get the group name for a given element
   const getGroupForElement = (element: HistoricalElement): string => {
     if (connections.group1.some(e => e.id === element.id)) return 'group1';
     if (connections.group2.some(e => e.id === element.id)) return 'group2';
@@ -82,20 +74,17 @@ const ConnectionGame = () => {
     return '';
   };
 
-  // Handle tile selection
   const handleTileClick = (element: HistoricalElement) => {
     if (gameOver || selectedTiles.find(tile => tile.id === element.id)) return;
 
     const newSelectedTiles = [...selectedTiles, element];
     setSelectedTiles(newSelectedTiles);
 
-    // Check if we have a full group of 4 selected
     if (newSelectedTiles.length === 4) {
       checkSelection(newSelectedTiles);
     }
   };
 
-  // Check if the selected tiles form a valid group
   const checkSelection = (tiles: HistoricalElement[]) => {
     const groups = [
       tiles.filter(tile => getGroupForElement(tile) === 'group1').length,
@@ -104,29 +93,24 @@ const ConnectionGame = () => {
       tiles.filter(tile => getGroupForElement(tile) === 'group4').length
     ];
 
-    // Check if all tiles belong to the same group
     const correctGroup = groups.findIndex(count => count === 4);
     
     if (correctGroup !== -1) {
-      // Correct guess!
       const groupName = `group${correctGroup + 1}`;
       toast.success('Correct match!');
       setSolvedGroups([...solvedGroups, groupName]);
       setSelectedTiles([]);
       
-      // Check if all groups are solved
       if (solvedGroups.length + 1 === 4) {
         setGameWon(true);
         setGameOver(true);
         toast.success('Congratulations! You won the game!');
       }
     } else {
-      // Incorrect guess
       toast.error('Incorrect match!');
       setAttempts(prev => prev - 1);
       setSelectedTiles([]);
       
-      // Check if game over
       if (attempts <= 1) {
         setGameOver(true);
         toast.error('Game over! No more attempts left.');
@@ -134,7 +118,6 @@ const ConnectionGame = () => {
     }
   };
 
-  // Get group name for display
   const getGroupDisplayName = (group: string): string => {
     switch (group) {
       case 'group1': return 'Historical People';
@@ -168,7 +151,6 @@ const ConnectionGame = () => {
         </div>
       </div>
       
-      {/* Solved groups */}
       {solvedGroups.length > 0 && (
         <div className="mb-6">
           <h3 className="text-lg font-medium mb-3">Solved Connections:</h3>
@@ -191,7 +173,6 @@ const ConnectionGame = () => {
         </div>
       )}
       
-      {/* Game board */}
       {!gameOver ? (
         <>
           <div className="grid grid-cols-4 gap-2 mb-4">

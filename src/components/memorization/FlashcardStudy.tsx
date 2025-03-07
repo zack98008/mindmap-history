@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { getHistoricalEvents, getHistoricalPeople, getHistoricalDocuments, getHistoricalConcepts } from '@/utils/dummyData';
+import { getHistoricalEvents, getHistoricalPersons, getHistoricalDocuments, getHistoricalConcepts } from '@/utils/dummyData';
 import { HistoricalElement } from '@/types';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, RotateCcw, Bookmark, CheckCircle, XCircle, Settings } from 'lucide-react';
@@ -26,7 +25,6 @@ const FlashcardStudy = () => {
   const [flipped, setFlipped] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // Initialize flashcards on mount and when category changes
   useEffect(() => {
     loadFlashcards();
   }, [currentCategory]);
@@ -36,7 +34,7 @@ const FlashcardStudy = () => {
     
     switch (currentCategory) {
       case 'people':
-        cards = getHistoricalPeople();
+        cards = getHistoricalPersons();
         break;
       case 'events':
         cards = getHistoricalEvents();
@@ -48,9 +46,8 @@ const FlashcardStudy = () => {
         cards = getHistoricalConcepts();
         break;
       default:
-        // For 'all', combine all categories
         cards = [
-          ...getHistoricalPeople(),
+          ...getHistoricalPersons(),
           ...getHistoricalEvents(),
           ...getHistoricalDocuments(),
           ...getHistoricalConcepts()
@@ -58,7 +55,6 @@ const FlashcardStudy = () => {
         break;
     }
     
-    // Convert to flashcards with status
     const newFlashcards: Flashcard[] = cards.map(card => ({
       ...card,
       status: 'studying',
@@ -66,7 +62,6 @@ const FlashcardStudy = () => {
       incorrectCount: 0
     }));
     
-    // Shuffle the cards
     const shuffled = [...newFlashcards].sort(() => Math.random() - 0.5);
     
     setFlashcards(shuffled);
@@ -108,7 +103,6 @@ const FlashcardStudy = () => {
     if (status === 'correct') {
       currentCard.correctCount += 1;
       
-      // If correct 3 times in a row, mark as mastered
       if (currentCard.correctCount >= 3 && currentCard.incorrectCount === 0) {
         currentCard.status = 'mastered';
         toast.success('Card mastered! 🎉');
@@ -116,7 +110,6 @@ const FlashcardStudy = () => {
     } else {
       currentCard.incorrectCount += 1;
       
-      // If incorrect 2 or more times, mark as struggling
       if (currentCard.incorrectCount >= 2) {
         currentCard.status = 'struggling';
       }
@@ -125,7 +118,6 @@ const FlashcardStudy = () => {
     currentCard.lastReviewed = new Date();
     setFlashcards(updatedFlashcards);
     
-    // Automatically go to next card
     handleNext();
   };
 
@@ -173,7 +165,6 @@ const FlashcardStudy = () => {
       
       {flashcards.length > 0 ? (
         <>
-          {/* Flashcard */}
           <div className="perspective-1000 mb-6">
             <motion.div
               className={`relative w-full aspect-[4/3] cursor-pointer perspective-1000 ${flipped ? 'rotate-y-180' : ''}`}
@@ -182,7 +173,6 @@ const FlashcardStudy = () => {
               animate={{ rotateY: flipped ? 180 : 0 }}
               transition={{ duration: 0.5 }}
             >
-              {/* Front of card */}
               <div className={`absolute inset-0 glass-card p-6 flex flex-col items-center justify-center backface-hidden ${
                 currentFlashcard?.status === 'mastered' 
                   ? 'border-2 border-green-500' 
@@ -212,7 +202,6 @@ const FlashcardStudy = () => {
                 </div>
               </div>
               
-              {/* Back of card */}
               <div className="absolute inset-0 glass-card p-6 flex flex-col items-center justify-center backface-hidden rotate-y-180">
                 <div className="absolute top-3 left-3 text-xs text-muted-foreground">
                   Details
@@ -226,7 +215,6 @@ const FlashcardStudy = () => {
             </motion.div>
           </div>
           
-          {/* Controls */}
           <div className="flex justify-between items-center">
             <Button variant="outline" onClick={handlePrevious} disabled={currentIndex === 0}>
               <ArrowLeft className="h-4 w-4 mr-2" />
