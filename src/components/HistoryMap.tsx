@@ -1,10 +1,10 @@
-
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { generateMapNodes, generateMapLinks, getElementById, getTimelineItems } from '@/utils/dummyData';
+import { generateMapNodes, generateMapLinks, getElementById, getTimelineItems, generateExtendedMapData } from '@/utils/dummyData';
 import { HistoricalElement, MapNode, MapLink, TimelineItem } from '@/types';
 import * as d3 from 'd3';
-import { Circle, Square, Diamond, Star, Clock, Play, Pause } from 'lucide-react';
+import { Circle, Square, Diamond, Star, Clock, Play, Pause, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface HistoryMapProps {
   onElementSelect: (element: HistoricalElement) => void;
@@ -18,6 +18,10 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   const [nodes, setNodes] = useState<MapNode[]>(generateMapNodes());
   const [links, setLinks] = useState<MapLink[]>(generateMapLinks());
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>(getTimelineItems());
+  
+  // Relationship depth visualization
+  const [maxRelationshipDepth, setMaxRelationshipDepth] = useState<number>(3);
+  const [showExtendedRelationships, setShowExtendedRelationships] = useState<boolean>(true);
   
   // Animation states
   const [isAnimating, setIsAnimating] = useState(false);
@@ -41,13 +45,9 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   // Function to get node color based on type with more meaningful associations
   const getNodeColor = (type: string) => {
     switch(type) {
-      // Purple - associated with leadership, wisdom, creativity
       case 'person': return '#9b87f5'; 
-      // Blue - associated with stability, truth, timeline events
       case 'event': return '#0EA5E9';  
-      // Teal - associated with clarity, knowledge, communication
       case 'document': return '#14B8A6'; 
-      // Gold - associated with ideas, inspiration, intellect
       case 'concept': return '#F59E0B'; 
       default: return '#FFFFFF';
     }
@@ -64,15 +64,15 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
 
     switch(type) {
       case 'person': 
-        return <Circle {...iconProps} />; // Circle for person - represents individual identity
+        return <Circle {...iconProps} />;
       case 'event': 
-        return <Diamond {...iconProps} />; // Diamond for event - represents significant moments
+        return <Diamond {...iconProps} />;
       case 'document': 
-        return <Square {...iconProps} />; // Square for document - represents structured information
+        return <Square {...iconProps} />;
       case 'concept': 
-        return <Star {...iconProps} />; // Star for concept - represents ideas that shine bright
+        return <Star {...iconProps} />;
       default:
-        return <Circle {...iconProps} />; // Default circle
+        return <Circle {...iconProps} />;
     }
   };
 
@@ -133,13 +133,24 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       }
     } else {
       setIsAnimating(true);
-      // Reset to beginning if we're at the end
       if (currentYear >= targetYear) {
         setCurrentYear(yearRange.min);
       }
       animationRef.current = requestAnimationFrame(animateStep);
     }
   };
+  
+  // Update data when selected element or relationship depth changes
+  useEffect(() => {
+    if (showExtendedRelationships && selectedElementId) {
+      const { nodes: extendedNodes, links: extendedLinks } = generateExtendedMapData(selectedElementId, maxRelationshipDepth);
+      setNodes(extendedNodes);
+      setLinks(extendedLinks);
+    } else {
+      setNodes(generateMapNodes());
+      setLinks(generateMapLinks());
+    }
+  }, [selectedElementId, maxRelationshipDepth, showExtendedRelationships]);
   
   // Initialize D3 visualization
   useEffect(() => {
@@ -239,7 +250,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       })
       .attr("d", "M0,-5L10,0L0,5");
     
-    // Create links with elegant gradients
+    // Create links with elegant gradients and layer-based opacity
     const link = mainGroup.append("g")
       .selectAll("path")
       .data(links)
@@ -254,15 +265,11 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         return "url(#linkGradient-default)";
       })
       .attr("stroke-width", d => {
-        if (selectedElementId && (
-          (typeof d.source === 'string' && d.source === selectedElementId) || 
-          (typeof d.source !== 'string' && d.source.id === selectedElementId) ||
-          (typeof d.target === 'string' && d.target === selectedElementId) ||
-          (typeof d.target !== 'string' && d.target.id === selectedElementId)
-        )) {
-          return 2;
-        }
-        return 1;
+        // Set thicker stroke for direct connections, thinner for secondary/tertiary
+        if (d.layer === 1) return 2;
+        if (d.layer === 2) return 1.5;
+        if (d.layer === 3) return 1;
+        return 0.75;
       })
       .attr("fill", "none")
       .attr("marker-end", d => {
@@ -281,27 +288,34 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         if (d.relationship.type === "documented") return "10, 2";
         return "1, 0";
       })
-      .style("opacity", 0); // Start with 0 opacity for animation
+      .style("opacity", d => d.opacity !== undefined ? d.opacity : 0); // Use layer-based opacity
 
-    // Create node containers
+    // Create node containers with layer information
     const nodeContainer = mainGroup.append("g")
       .selectAll("g")
       .data(nodes)
       .enter().append("g")
       .attr("class", "node-container")
-      .attr("opacity", 0) // Start with 0 opacity for animation
+      .attr("opacity", d => d.opacity !== undefined ? d.opacity : 0) // Layer-based opacity
       .call(d3.drag<SVGGElement, MapNode>()
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended));
     
-    // Add glow effects for nodes
+    // Add glow effects for nodes with layer-based intensity
     nodeContainer.append("circle")
       .attr("class", "node-glow")
       .attr("r", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 30 : 25)
-      .attr("fill", d => `${getNodeColor(d.element.type)}33`) // Transparent version of node color
+      .attr("fill", d => `${getNodeColor(d.element.type)}${d.layer === 1 ? '33' : d.layer === 2 ? '22' : '11'}`) // Adjust transparency based on layer
       .attr("filter", "url(#glow)")
-      .attr("opacity", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 0.7 : 0.3);
+      .attr("opacity", d => {
+        const baseOpacity = (d.id === selectedElementId || d.id === hoveredNodeId) ? 0.7 : 0.3;
+        // Reduce opacity for extended relationship layers
+        if (d.layer === 1) return baseOpacity;
+        if (d.layer === 2) return baseOpacity * 0.75;
+        if (d.layer === 3) return baseOpacity * 0.5;
+        return baseOpacity * 0.3;
+      });
     
     // Add transparent images with faded edges
     nodeContainer.each(function(d) {
@@ -315,7 +329,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           .append("circle")
           .attr("r", 24);
         
-        // Add the image
+        // Add the image with layer-based opacity
         node.append("image")
           .attr("xlink:href", d.element.imageUrl)
           .attr("width", 50)
@@ -324,7 +338,8 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           .attr("y", -25)
           .attr("clip-path", `url(#${clipPathId})`)
           .attr("filter", "url(#image-fade)")
-          .attr("class", "node-image");
+          .attr("class", "node-image")
+          .attr("opacity", d.layer === 1 ? 1 : d.layer === 2 ? 0.8 : 0.6); // Adjust image opacity based on layer
       }
     });
     
@@ -396,11 +411,16 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       .attr("text-anchor", "middle")
       .attr("dy", 40)
       .attr("fill", "#FFFFFF")
-      .attr("font-weight", "500")
-      .attr("font-size", "12px")
+      .attr("font-weight", d => d.layer === 1 ? "500" : "400") // Lighter weight for extended layers
+      .attr("font-size", d => d.layer === 1 ? "12px" : d.layer === 2 ? "11px" : "10px") // Smaller text for extended layers
       .attr("text-shadow", "0 0 4px rgba(0, 0, 0, 0.5)")
       .text(d => d.element.name)
-      .attr("opacity", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 1 : 0);
+      .attr("opacity", d => {
+        if (d.id === selectedElementId || d.id === hoveredNodeId) return 1;
+        if (d.layer === 1) return 0; // Hide labels for non-selected nodes by default
+        if (d.layer === 2) return 0;
+        return 0;
+      });
     
     // Add a subtle ripple effect on selected node
     if (selectedElementId) {
@@ -456,18 +476,63 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         // Scale up the icon
         const iconContainer = d3.select(this).select("foreignObject");
         iconContainer.attr("width", 60).attr("height", 60).attr("x", -30).attr("y", -30);
+        
+        // Highlight connected nodes
+        if (showExtendedRelationships) {
+          const connectedNodeIds = new Set<string>();
+          
+          links.forEach(link => {
+            const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+            const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+            
+            if (sourceId === d.id) connectedNodeIds.add(targetId);
+            if (targetId === d.id) connectedNodeIds.add(sourceId);
+          });
+          
+          nodeContainer.filter(n => connectedNodeIds.has(n.id))
+            .select(".node-glow")
+            .attr("opacity", 0.6)
+            .attr("r", 30);
+            
+          nodeContainer.filter(n => connectedNodeIds.has(n.id))
+            .select(".node-label")
+            .attr("opacity", 0.8);
+        }
       })
       .on("mouseout", function(event, d) {
         setHoveredNodeId(null);
         d3.select(this).select(".node-glow")
-          .attr("opacity", d => d.id === selectedElementId ? 0.7 : 0.3)
+          .attr("opacity", d => {
+            const baseOpacity = d.id === selectedElementId ? 0.7 : 0.3;
+            if (d.layer === 1) return baseOpacity;
+            if (d.layer === 2) return baseOpacity * 0.75;
+            if (d.layer === 3) return baseOpacity * 0.5;
+            return baseOpacity * 0.3;
+          })
           .attr("r", d => d.id === selectedElementId ? 30 : 25);
+        
         d3.select(this).select(".node-label")
           .attr("opacity", d => d.id === selectedElementId ? 1 : 0);
           
         // Reset icon size
         const iconContainer = d3.select(this).select("foreignObject");
         iconContainer.attr("width", 50).attr("height", 50).attr("x", -25).attr("y", -25);
+        
+        // Reset highlighted connected nodes
+        if (showExtendedRelationships) {
+          nodeContainer.select(".node-glow")
+            .attr("opacity", d => {
+              const baseOpacity = d.id === selectedElementId ? 0.7 : 0.3;
+              if (d.layer === 1) return baseOpacity;
+              if (d.layer === 2) return baseOpacity * 0.75;
+              if (d.layer === 3) return baseOpacity * 0.5;
+              return baseOpacity * 0.3;
+            })
+            .attr("r", d => d.id === selectedElementId ? 30 : 25);
+            
+          nodeContainer.select(".node-label")
+            .attr("opacity", d => d.id === selectedElementId ? 1 : 0);
+        }
       })
       .on("click", function(event, d) {
         const element = getElementById(d.id);
@@ -476,15 +541,30 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         }
       });
     
-    // Force simulation
+    // Force simulation with different forces for different layers
     simulationRef.current = d3.forceSimulation(nodes)
       .force("link", d3.forceLink()
         .id((d: any) => d.id)
         .links(links)
-        .distance(150))
-      .force("charge", d3.forceManyBody().strength(-400))
+        .distance(d => {
+          // Adjust distance based on layer
+          if (d.layer === 1) return 150;
+          if (d.layer === 2) return 200;
+          return 250;
+        }))
+      .force("charge", d3.forceManyBody().strength(d => {
+        // Stronger repulsion for primary connections, weaker for extended
+        if (d.layer === 1) return -400;
+        if (d.layer === 2) return -300;
+        return -200;
+      }))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(50))
+      .force("collision", d3.forceCollide().radius(d => {
+        // Larger collision radius for primary nodes
+        if (d.layer === 1) return 50;
+        if (d.layer === 2) return 40;
+        return 30;
+      }))
       .on("tick", ticked);
     
     // Position elements on tick
@@ -559,7 +639,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         simulationRef.current.stop();
       }
     };
-  }, [nodes, links, hoveredNodeId, selectedElementId, onElementSelect]);
+  }, [nodes, links, hoveredNodeId, selectedElementId, onElementSelect, showExtendedRelationships]);
   
   // Update node positions based on selected element
   useEffect(() => {
@@ -645,6 +725,16 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       .style("opacity", d => calculateLinkVisibility(d, currentYear, nodesMap));
   }, [currentYear, nodes]);
 
+  // Toggle extended relationships
+  const handleToggleExtendedRelationships = () => {
+    setShowExtendedRelationships(!showExtendedRelationships);
+  };
+
+  // Change relationship depth
+  const handleChangeRelationshipDepth = (depth: number) => {
+    setMaxRelationshipDepth(depth);
+  };
+
   return (
     <div
       ref={containerRef}
@@ -681,6 +771,57 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           </div>
           <span className="text-xs ml-2">Concept</span>
         </div>
+      </div>
+      
+      {/* Extended relationship controls */}
+      <div className="absolute top-4 left-4 glass-card p-2">
+        <div className="flex items-center mb-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleToggleExtendedRelationships}
+              >
+                <Layers className={`h-4 w-4 ${showExtendedRelationships ? 'text-chronoBlue' : 'text-muted-foreground'}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{showExtendedRelationships ? 'Hide' : 'Show'} Extended Relationships</p>
+            </TooltipContent>
+          </Tooltip>
+          <span className="text-xs ml-2">Extended Connections</span>
+        </div>
+        
+        {showExtendedRelationships && (
+          <div className="flex gap-2">
+            <Button 
+              variant={maxRelationshipDepth === 1 ? "default" : "outline"} 
+              size="sm" 
+              className="h-6 text-xs px-2"
+              onClick={() => handleChangeRelationshipDepth(1)}
+            >
+              Direct
+            </Button>
+            <Button 
+              variant={maxRelationshipDepth === 2 ? "default" : "outline"} 
+              size="sm" 
+              className="h-6 text-xs px-2"
+              onClick={() => handleChangeRelationshipDepth(2)}
+            >
+              2° 
+            </Button>
+            <Button 
+              variant={maxRelationshipDepth === 3 ? "default" : "outline"} 
+              size="sm" 
+              className="h-6 text-xs px-2"
+              onClick={() => handleChangeRelationshipDepth(3)}
+            >
+              3°
+            </Button>
+          </div>
+        )}
       </div>
       
       {/* Time controls */}

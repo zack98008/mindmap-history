@@ -1,10 +1,10 @@
 
 import React from 'react';
-import { X, User, Calendar, FileText, Lightbulb, Link } from 'lucide-react';
+import { X, User, Calendar, FileText, Lightbulb, Link, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { HistoricalElement } from '@/types';
-import { getRelatedElements, getRelationshipsByElementId } from '@/utils/dummyData';
+import { getRelatedElements, getRelationshipsByElementId, getRelationshipsByDepth } from '@/utils/dummyData';
 
 interface DetailCardProps {
   element: HistoricalElement;
@@ -13,8 +13,22 @@ interface DetailCardProps {
 }
 
 const DetailCard: React.FC<DetailCardProps> = ({ element, onClose, onElementSelect }) => {
-  const relatedElements = getRelatedElements(element.id);
-  const relationships = getRelationshipsByElementId(element.id);
+  const [showExtendedRelationships, setShowExtendedRelationships] = React.useState(false);
+  const directRelationships = getRelationshipsByElementId(element.id);
+  const directRelatedElements = getRelatedElements(element.id);
+  
+  // Get extended relationship data
+  const { nodes: extendedNodeIds, nodeDepths } = getRelationshipsByDepth(element.id, 3);
+  
+  // Filter out the current element and direct connections to get 2nd and 3rd degree connections
+  const extendedElements = Array.from(extendedNodeIds)
+    .filter(id => id !== element.id && !directRelatedElements.some(rel => rel.id === id))
+    .map(id => {
+      const foundElement = directRelatedElements.find(el => el.id === id);
+      return foundElement ? { element: foundElement, depth: nodeDepths.get(id) || 0 } : null;
+    })
+    .filter((item): item is { element: HistoricalElement, depth: number } => item !== null)
+    .sort((a, b) => a.depth - b.depth);
 
   const getTypeIcon = (type: string) => {
     switch(type) {
@@ -73,12 +87,13 @@ const DetailCard: React.FC<DetailCardProps> = ({ element, onClose, onElementSele
           </div>
         </div>
         
-        {relatedElements.length > 0 && (
-          <div>
-            <p className="text-sm font-medium mb-2">Connections:</p>
+        {/* Direct connections */}
+        {directRelatedElements.length > 0 && (
+          <div className="mb-4">
+            <p className="text-sm font-medium mb-2">Direct Connections:</p>
             <div className="space-y-2">
-              {relationships.map((rel) => {
-                const relatedElement = relatedElements.find(
+              {directRelationships.map((rel) => {
+                const relatedElement = directRelatedElements.find(
                   e => e.id === (rel.sourceId === element.id ? rel.targetId : rel.sourceId)
                 );
                 if (!relatedElement) return null;
@@ -101,6 +116,47 @@ const DetailCard: React.FC<DetailCardProps> = ({ element, onClose, onElementSele
                 );
               })}
             </div>
+          </div>
+        )}
+        
+        {/* Extended connections section */}
+        {extendedElements.length > 0 && (
+          <div className="mt-4">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-sm font-medium">Extended Network:</p>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowExtendedRelationships(!showExtendedRelationships)}
+                className="h-7 text-xs"
+              >
+                <Layers className="h-3 w-3 mr-1" />
+                {showExtendedRelationships ? 'Hide' : 'Show'}
+              </Button>
+            </div>
+            
+            {showExtendedRelationships && (
+              <div className="space-y-2 mt-2">
+                {extendedElements.map(({ element: extElement, depth }) => (
+                  <div 
+                    key={extElement.id}
+                    className="p-2 border border-white/10 rounded-md hover:bg-chronoBlue/20 cursor-pointer transition-colors"
+                    onClick={() => onElementSelect(extElement)}
+                    style={{opacity: depth === 1 ? 0.85 : depth === 2 ? 0.7 : 0.55}}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        {getTypeIcon(extElement.type)}
+                        <span className="ml-2 font-medium">{extElement.name}</span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] h-5">
+                        {depth === 1 ? '2nd' : depth === 2 ? '3rd' : '4th'} degree
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

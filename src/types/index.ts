@@ -40,6 +40,9 @@ export interface MapNode {
   targetX?: number;
   targetY?: number;
   animating?: boolean;
+  // Added for relationship layers
+  layer?: number; // 1 = direct, 2 = secondary, 3 = tertiary
+  opacity?: number;
 }
 
 export interface MapLink {
@@ -50,4 +53,6 @@ export interface MapLink {
   // Added for animations
   animating?: boolean;
   opacity?: number;
+  // Added for relationship layers
+  layer?: number; // 1 = direct, 2 = secondary, 3 = tertiary
 }

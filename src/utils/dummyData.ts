@@ -1,4 +1,4 @@
-import { HistoricalElement, Relationship } from "../types";
+import { HistoricalElement, Relationship, MapNode, MapLink } from "../types";
 
 export const historicalElements: HistoricalElement[] = [
   {
@@ -176,6 +176,35 @@ export const getTimelineItems = () => {
     .sort((a, b) => a.year - b.year); // Sort by year
 };
 
+// Function to get element by id
+export const getElementById = (id: string): HistoricalElement | undefined => {
+  return historicalElements.find(element => element.id === id);
+};
+
+// Function to get relationships by element id
+export const getRelationshipsByElementId = (id: string): Relationship[] => {
+  return relationships.filter(rel => rel.sourceId === id || rel.targetId === id);
+};
+
+// Function to get related elements for a specific element
+export const getRelatedElements = (id: string): HistoricalElement[] => {
+  const relatedIds = relationships
+    .filter(rel => rel.sourceId === id || rel.targetId === id)
+    .map(rel => (rel.sourceId === id ? rel.targetId : rel.sourceId));
+  
+  return historicalElements.filter(element => relatedIds.includes(element.id));
+};
+
+// Function to search elements
+export const searchElements = (query: string): HistoricalElement[] => {
+  const lowerQuery = query.toLowerCase();
+  return historicalElements.filter(element => 
+    element.name.toLowerCase().includes(lowerQuery) || 
+    element.description.toLowerCase().includes(lowerQuery) || 
+    element.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
+  );
+};
+
 // Generate nodes with positions for the map visualization
 export const generateMapNodes = () => {
   const centerX = 500;
@@ -216,31 +245,104 @@ export const generateMapLinks = () => {
   });
 };
 
-// Function to get element by id
-export const getElementById = (id: string): HistoricalElement | undefined => {
-  return historicalElements.find(element => element.id === id);
-};
-
-// Function to get relationships by element id
-export const getRelationshipsByElementId = (id: string): Relationship[] => {
-  return relationships.filter(rel => rel.sourceId === id || rel.targetId === id);
-};
-
-// Function to get related elements for a specific element
-export const getRelatedElements = (id: string): HistoricalElement[] => {
-  const relatedIds = relationships
-    .filter(rel => rel.sourceId === id || rel.targetId === id)
-    .map(rel => (rel.sourceId === id ? rel.targetId : rel.sourceId));
+// New function to get relationship path (1st, 2nd, and 3rd degree connections)
+export const getRelationshipsByDepth = (startElementId: string, maxDepth: number = 3): { nodes: Set<string>, links: Relationship[], nodeDepths: Map<string, number> } => {
+  const visitedNodes = new Set<string>([startElementId]);
+  const relationshipLinks: Relationship[] = [];
+  const nodeDepths = new Map<string, number>();
   
-  return historicalElements.filter(element => relatedIds.includes(element.id));
+  // Initialize starting node with depth 0
+  nodeDepths.set(startElementId, 0);
+  
+  // Queue for BFS traversal
+  const queue: { nodeId: string, depth: number }[] = [{ nodeId: startElementId, depth: 0 }];
+  
+  while (queue.length > 0) {
+    const { nodeId, depth } = queue.shift()!;
+    
+    // Don't explore beyond max depth
+    if (depth >= maxDepth) continue;
+    
+    // Get all relationships for this node
+    const nodeRelationships = relationships.filter(rel => 
+      rel.sourceId === nodeId || rel.targetId === nodeId
+    );
+    
+    for (const relationship of nodeRelationships) {
+      // Get the other side of the relationship
+      const connectedNodeId = relationship.sourceId === nodeId 
+        ? relationship.targetId 
+        : relationship.sourceId;
+      
+      // Add relationship to our collection
+      relationshipLinks.push(relationship);
+      
+      // If we haven't seen this node yet
+      if (!visitedNodes.has(connectedNodeId)) {
+        visitedNodes.add(connectedNodeId);
+        nodeDepths.set(connectedNodeId, depth + 1);
+        
+        // Add to queue for further exploration
+        queue.push({ nodeId: connectedNodeId, depth: depth + 1 });
+      }
+    }
+  }
+  
+  return { 
+    nodes: visitedNodes,
+    links: relationshipLinks,
+    nodeDepths
+  };
 };
 
-// Function to search elements
-export const searchElements = (query: string): HistoricalElement[] => {
-  const lowerQuery = query.toLowerCase();
-  return historicalElements.filter(element => 
-    element.name.toLowerCase().includes(lowerQuery) || 
-    element.description.toLowerCase().includes(lowerQuery) || 
-    element.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
-  );
+// Function to generate extended map nodes and links based on depth
+export const generateExtendedMapData = (selectedElementId: string | null, maxDepth: number = 3): { nodes: MapNode[], links: MapLink[] } => {
+  if (!selectedElementId) {
+    // If no element is selected, return all nodes and links
+    return { 
+      nodes: generateMapNodes(), 
+      links: generateMapLinks()
+    };
+  }
+  
+  const { nodes: includedNodeIds, links: includedRelationships, nodeDepths } = getRelationshipsByDepth(selectedElementId, maxDepth);
+  
+  // Generate positioned nodes for included IDs
+  const allNodes = generateMapNodes();
+  const includedNodes = allNodes.filter(node => includedNodeIds.has(node.id));
+  
+  // Add layer information
+  includedNodes.forEach(node => {
+    const depth = nodeDepths.get(node.id) || 0;
+    node.layer = depth + 1; // Convert 0-based to 1-based for readability
+    
+    // Set opacity based on layer
+    if (node.layer === 1) {
+      node.opacity = 1;
+    } else if (node.layer === 2) {
+      node.opacity = 0.75;
+    } else if (node.layer === 3) {
+      node.opacity = 0.5;
+    } else {
+      node.opacity = 0.3;
+    }
+  });
+  
+  // Generate links between included nodes
+  const includedLinks = includedRelationships.map(rel => {
+    const sourceDepth = nodeDepths.get(rel.sourceId) || 0;
+    const targetDepth = nodeDepths.get(rel.targetId) || 0;
+    const maxConnectionDepth = Math.max(sourceDepth, targetDepth);
+    
+    return {
+      id: rel.id,
+      source: rel.sourceId,
+      target: rel.targetId,
+      relationship: rel,
+      layer: maxConnectionDepth + 1, // Convert 0-based to 1-based
+      opacity: maxConnectionDepth === 0 ? 1 : maxConnectionDepth === 1 ? 0.75 : 0.5
+    };
+  });
+  
+  return { nodes: includedNodes, links: includedLinks };
 };
