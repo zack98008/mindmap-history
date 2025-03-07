@@ -27,7 +27,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const getSession = async () => {
       try {
+        console.log("AuthProvider: Fetching initial session");
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("AuthProvider: Initial session", { exists: !!session, user: session?.user?.email });
         setSession(session);
         setUser(session?.user ?? null);
       } catch (error) {
@@ -40,7 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        console.log("AuthProvider: Auth state changed", { event, user: session?.user?.email });
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -54,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      console.log("AuthProvider: Signing out");
       await supabase.auth.signOut();
     } catch (error) {
       console.error('Error signing out:', error);
