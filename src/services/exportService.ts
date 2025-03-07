@@ -56,16 +56,18 @@ export const exportVisualization = async (
 
     // Ensure node titles are visible
     const nodeElements = containerRef.current.querySelectorAll('.node-element');
-    const nodeLabels: { element: Element, visibility: string }[] = [];
+    const nodeLabels: { element: Element, visibility: string, opacity: string }[] = [];
     
     nodeElements.forEach(element => {
       const labelElement = element.querySelector('.node-label');
       if (labelElement) {
         nodeLabels.push({ 
           element: labelElement, 
-          visibility: (labelElement as HTMLElement).style.visibility 
+          visibility: (labelElement as HTMLElement).style.visibility,
+          opacity: (labelElement as HTMLElement).style.opacity 
         });
         (labelElement as HTMLElement).style.visibility = 'visible';
+        (labelElement as HTMLElement).style.opacity = '1';
       }
     });
 
@@ -77,14 +79,24 @@ export const exportVisualization = async (
       skipFonts: true, // Improves performance
     });
 
+    // Get the actual dimensions of the visualization
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise(resolve => {
+      img.onload = resolve;
+    });
+    
+    const aspectRatio = img.width / img.height;
+
     // Restore hidden elements
     hiddenElements.forEach(({ element, display }) => {
       (element as HTMLElement).style.display = display;
     });
 
     // Restore node labels
-    nodeLabels.forEach(({ element, visibility }) => {
+    nodeLabels.forEach(({ element, visibility, opacity }) => {
       (element as HTMLElement).style.visibility = visibility;
+      (element as HTMLElement).style.opacity = opacity;
     });
 
     // Handle different export formats
@@ -100,62 +112,63 @@ export const exportVisualization = async (
     }
 
     // For PDF export, calculate optimal dimensions based on visualization size
+    // Instead of using standard A4, we'll calculate custom dimensions
+    const maxWidth = 210; // Max width in mm (A4 width reference)
+    const maxHeight = 297; // Max height in mm (A4 height reference)
+    
+    let pdfWidth, pdfHeight;
+    
+    if (aspectRatio > 1) {
+      // Landscape orientation - wider than tall
+      pdfWidth = Math.min(maxWidth * 1.5, img.width / 5); // Allow wider than A4 but with a limit
+      pdfHeight = pdfWidth / aspectRatio;
+      
+      // If height is too small, adjust
+      if (pdfHeight < 50) {
+        pdfHeight = 50;
+        pdfWidth = pdfHeight * aspectRatio;
+      }
+    } else {
+      // Portrait orientation - taller than wide
+      pdfHeight = Math.min(maxHeight * 1.5, img.height / 5); // Allow taller than A4 but with a limit
+      pdfWidth = pdfHeight * aspectRatio;
+      
+      // If width is too small, adjust
+      if (pdfWidth < 50) {
+        pdfWidth = 50;
+        pdfHeight = pdfWidth / aspectRatio;
+      }
+    }
+    
+    // Create PDF with custom dimensions
     const pdf = new jsPDF({
-      orientation: 'landscape',
+      orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
       unit: 'mm',
+      format: [pdfWidth + 20, pdfHeight + 50] // Add margins
     });
 
     // Add title and description
-    pdf.setFontSize(24);
-    pdf.text(title, 15, 15);
+    pdf.setFontSize(16);
+    pdf.text(title, 10, 10);
     
-    pdf.setFontSize(12);
-    const descriptionLines = pdf.splitTextToSize(description, 260);
-    pdf.text(descriptionLines, 15, 25);
+    pdf.setFontSize(10);
+    const descriptionLines = pdf.splitTextToSize(description, pdfWidth);
+    pdf.text(descriptionLines, 10, 18);
 
-    // Add the visualization image with proper sizing
-    const imgProps = pdf.getImageProperties(dataUrl);
-    const pdfWidth = pdf.internal.pageSize.getWidth() - 30; // Account for margins
+    // Add the visualization image
+    const contentPdfWidth = pdfWidth;
+    const contentPdfHeight = pdfHeight;
     
-    // Calculate height while maintaining aspect ratio
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    pdf.addImage(dataUrl, 'PNG', 10, 30, contentPdfWidth, contentPdfHeight);
     
-    // Check if we need to add a new page for very tall visualizations
-    const availablePageHeight = pdf.internal.pageSize.getHeight() - 40; // Account for margins and title
-    
-    if (pdfHeight > availablePageHeight) {
-      // Add the visualization to a new page to give it more room
-      pdf.addPage();
-      pdf.addImage(dataUrl, 'PNG', 15, 15, pdfWidth, pdfHeight);
-    } else {
-      // Add the visualization to the current page
-      pdf.addImage(dataUrl, 'PNG', 15, 35, pdfWidth, pdfHeight);
-    }
-
     // Add metadata if enabled
     if (includeMetadata && (selectedElements?.length || customNodes?.length)) {
-      // Calculate position for metadata (either on first page after visualization or on a new page)
-      let metadataY;
+      const metadataY = 35 + contentPdfHeight;
       
-      if (pdfHeight > availablePageHeight) {
-        // If visualization is on a new page, add metadata to a third page
-        pdf.addPage();
-        metadataY = 15;
-      } else {
-        // If visualization fits on first page, add metadata below it
-        metadataY = 35 + pdfHeight + 10;
-        
-        // If metadata would go off the page, add a new page
-        if (metadataY > availablePageHeight - 20) {
-          pdf.addPage();
-          metadataY = 15;
-        }
-      }
+      pdf.setFontSize(12);
+      pdf.text('Elements in this visualization:', 10, metadataY);
       
-      pdf.setFontSize(14);
-      pdf.text('Elements in this visualization:', 15, metadataY);
-      
-      pdf.setFontSize(10);
+      pdf.setFontSize(8);
       let elementText = '';
       
       if (selectedElements?.length) {
@@ -167,8 +180,8 @@ export const exportVisualization = async (
         elementText += customNodes.map(node => node.element.name || 'Unnamed node').join(', ');
       }
       
-      const metadataLines = pdf.splitTextToSize(elementText, 260);
-      pdf.text(metadataLines, 15, metadataY + 7);
+      const metadataLines = pdf.splitTextToSize(elementText, pdfWidth);
+      pdf.text(metadataLines, 10, metadataY + 5);
     }
 
     // Save the PDF
