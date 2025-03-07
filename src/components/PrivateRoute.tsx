@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -10,17 +10,24 @@ interface PrivateRouteProps {
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const { loading, user } = useAuth();
   const location = useLocation();
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
   useEffect(() => {
     console.log("PrivateRoute: Auth state", { 
       loading, 
       isAuthenticated: !!user, 
-      currentPath: location.pathname 
+      currentPath: location.pathname,
+      initialLoadComplete
     });
-  }, [loading, user, location]);
+    
+    // Mark initial load as complete when loading finishes
+    if (!loading && !initialLoadComplete) {
+      setInitialLoadComplete(true);
+    }
+  }, [loading, user, location, initialLoadComplete]);
   
-  // Show loading spinner only when we're actually loading
-  if (loading) {
+  // Only show loading spinner on initial load, not on subsequent route changes
+  if (loading && !initialLoadComplete) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>

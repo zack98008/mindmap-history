@@ -33,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -55,25 +56,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    let mounted = true;
+    
     const getInitialSession = async () => {
       try {
         setLoading(true);
         console.log("AuthProvider: Fetching initial session");
         
+        // Get session from local storage first
         const { data: { session } } = await supabase.auth.getSession();
         console.log("AuthProvider: Initial session", { exists: !!session, user: session?.user?.email });
         
-        if (session) {
+        if (session && mounted) {
           setSession(session);
           setUser(session.user);
           
           const profile = await fetchUserProfile(session.user.id);
-          setUserProfile(profile);
+          if (mounted) {
+            setUserProfile(profile);
+          }
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setAuthChecked(true);
+        }
       }
     };
 
@@ -83,32 +92,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, session) => {
         console.log("AuthProvider: Auth state changed", { event, user: session?.user?.email });
         
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          const profile = await fetchUserProfile(session.user.id);
-          setUserProfile(profile);
-        } else {
-          setUserProfile(null);
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            const profile = await fetchUserProfile(session.user.id);
+            if (mounted) {
+              setUserProfile(profile);
+            }
+          } else {
+            setUserProfile(null);
+          }
+          
+          setLoading(false);
+          setAuthChecked(true);
         }
-        
-        setLoading(false);
       }
     );
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
+  // Ensure we reset loading state after a short timeout if it gets stuck
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading && !authChecked) {
+        console.log("AuthProvider: Loading state reset due to timeout");
+        setLoading(false);
+        setAuthChecked(true);
+      }
+    }, 5000); // 5 second safety timeout
+
+    return () => clearTimeout(timer);
+  }, [loading, authChecked]);
+
   const signOut = async () => {
     try {
       console.log("AuthProvider: Signing out");
+      setLoading(true);
       await supabase.auth.signOut();
       // State will be updated by the onAuthStateChange event
     } catch (error) {
       console.error('Error signing out:', error);
+      setLoading(false);
     }
   };
 
