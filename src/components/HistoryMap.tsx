@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { generateMapNodes, generateMapLinks, getElementById, getTimelineItems, generateExtendedMapData } from '@/utils/dummyData';
 import { HistoricalElement, MapNode, MapLink, TimelineItem, HistoricalElementType, NodeFormData } from '@/types';
 import * as d3 from 'd3';
-import { Circle, Square, Diamond, Star, Clock, Play, Pause, Layers, Plus, Pencil, Trash, X, Check, Lock } from 'lucide-react';
+import { Circle, Square, Diamond, Star, Clock, Play, Pause, Layers, Plus, Pencil, Trash, X, Check, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -49,6 +49,9 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   const [targetYear, setTargetYear] = useState(2000);
   const animationSpeedRef = useRef(50);
   const animationRef = useRef<number | null>(null);
+  
+  const [allNodesLocked, setAllNodesLocked] = useState(false);
+  const alphaValueRef = useRef(0.1);
   
   const simulationRef = useRef<any>(null);
   
@@ -233,7 +236,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     setEditingNodeId(null);
     
     if (simulationRef.current) {
-      simulationRef.current.alpha(0.3).restart();
+      simulationRef.current.alpha(alphaValueRef.current).restart();
     }
   };
 
@@ -324,6 +327,58 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         setCurrentYear(yearRange.min);
       }
       animationRef.current = requestAnimationFrame(animateStep);
+    }
+  };
+
+  const toggleAllNodesLock = () => {
+    const newLockedState = !allNodesLocked;
+    setAllNodesLocked(newLockedState);
+    
+    const updatedNodes = nodes.map(node => ({
+      ...node,
+      isLocked: newLockedState,
+      fx: newLockedState ? node.x : null,
+      fy: newLockedState ? node.y : null
+    }));
+    
+    setNodes(updatedNodes);
+    
+    if (simulationRef.current) {
+      if (newLockedState) {
+        simulationRef.current.alpha(0).stop();
+      } else {
+        simulationRef.current.alpha(alphaValueRef.current).restart();
+      }
+    }
+    
+    toast({
+      title: newLockedState ? "All Nodes Locked" : "All Nodes Unlocked",
+      description: newLockedState ? 
+        "The network is now stabilized with all nodes fixed in place." : 
+        "Nodes are now free to move with the simulation."
+    });
+  };
+
+  const toggleNodeLock = (nodeId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    
+    const updatedNodes = nodes.map(node => {
+      if (node.id === nodeId) {
+        const newLockedState = !node.isLocked;
+        return {
+          ...node,
+          isLocked: newLockedState,
+          fx: newLockedState ? node.x : null,
+          fy: newLockedState ? node.y : null
+        };
+      }
+      return node;
+    });
+    
+    setNodes(updatedNodes);
+    
+    if (simulationRef.current) {
+      simulationRef.current.alpha(alphaValueRef.current).restart();
     }
   };
 
@@ -663,7 +718,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       lockIconSvg.setAttribute("viewBox", "0 0 24 24");
       
       const lockIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      lockIconPath.setAttribute("d", "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Z");
+      lockIconPath.setAttribute("d", "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7");
       lockIconPath.setAttribute("fill", "#FFFFFF");
       lockIconPath.setAttribute("stroke", "#FFFFFF");
       lockIconPath.setAttribute("stroke-width", "1.5");
@@ -839,14 +894,119 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       }
     });
     
+    const glowFilter = defs.append("filter")
+      .attr("id", "glow");
+    
+    glowFilter.append("feGaussianBlur")
+      .attr("in", "SourceGraphic")
+      .attr("stdDeviation", "5")
+      .attr("result", "blur");
+    
+    glowFilter.append("feColorMatrix")
+      .attr("in", "blur")
+      .attr("type", "matrix")
+      .attr("values", "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7")
+      .attr("result", "glow");
+    
+    glowFilter.append("feBlend")
+      .attr("in", "SourceGraphic")
+      .attr("in2", "glow")
+      .attr("mode", "normal");
+    
+    nodeContainer.each(function(d) {
+      const node = d3.select(this);
+      
+      const lockButton = node.append("g")
+        .attr("class", "node-lock-toggle")
+        .attr("transform", "translate(25, -25)")
+        .style("cursor", "pointer")
+        .style("opacity", 0)
+        .on("click", function(event) {
+          toggleNodeLock(d.id, event);
+        });
+      
+      lockButton.append("circle")
+        .attr("r", 10)
+        .attr("fill", "rgba(255, 255, 255, 0.9)")
+        .attr("stroke", d.isLocked ? "#F59E0B" : "#64748b");
+      
+      const lockFO = lockButton.append("foreignObject")
+        .attr("width", 16)
+        .attr("height", 16)
+        .attr("x", -8)
+        .attr("y", -8)
+        .style("pointer-events", "none");
+      
+      const lockIconContainer = lockFO.append("xhtml:div")
+        .style("width", "100%")
+        .style("height", "100%")
+        .style("display", "flex")
+        .style("justify-content", "center")
+        .style("align-items", "center");
+      
+      const lockIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      lockIconSvg.setAttribute("width", "12");
+      lockIconSvg.setAttribute("height", "12");
+      lockIconSvg.setAttribute("viewBox", "0 0 24 24");
+      
+      if (d.isLocked) {
+        const lockIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        lockIconPath.setAttribute("d", "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Z");
+        lockIconPath.setAttribute("fill", "#F59E0B");
+        lockIconPath.setAttribute("stroke", "#F59E0B");
+        lockIconPath.setAttribute("stroke-width", "1.5");
+        
+        const lockIconPath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        lockIconPath2.setAttribute("d", "M7 11V7a5 5 0 0 1 10 0v4");
+        lockIconPath2.setAttribute("fill", "none");
+        lockIconPath2.setAttribute("stroke", "#F59E0B");
+        lockIconPath2.setAttribute("stroke-width", "1.5");
+        
+        lockIconSvg.appendChild(lockIconPath);
+        lockIconSvg.appendChild(lockIconPath2);
+      } else {
+        const unlockIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        unlockIconPath.setAttribute("d", "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Z");
+        unlockIconPath.setAttribute("fill", "#64748b");
+        unlockIconPath.setAttribute("stroke", "#64748b");
+        unlockIconPath.setAttribute("stroke-width", "1.5");
+        
+        const unlockIconPath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        unlockIconPath2.setAttribute("d", "M7 11V7a5 5 0 0 1 9.9-1");
+        unlockIconPath2.setAttribute("fill", "none");
+        unlockIconPath2.setAttribute("stroke", "#64748b");
+        unlockIconPath2.setAttribute("stroke-width", "1.5");
+        
+        lockIconSvg.appendChild(unlockIconPath);
+        lockIconSvg.appendChild(unlockIconPath2);
+      }
+      
+      lockIconContainer.node()!.appendChild(lockIconSvg);
+      
+      node.on("mouseover.lock", function() {
+        lockButton.style("opacity", 1);
+      })
+      .on("mouseout.lock", function() {
+        lockButton.style("opacity", 0);
+      });
+    });
+    
     const simulation = d3.forceSimulation<MapNode, MapLink>(nodes)
-      .force("link", d3.forceLink<MapNode, MapLink>(links).id(d => d.id).distance(100))
-      .force("charge", d3.forceManyBody().strength(-300))
+      .force("link", d3.forceLink<MapNode, MapLink>(links).id(d => d.id).distance(150))
+      .force("charge", d3.forceManyBody().strength(-400))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collide", d3.forceCollide().radius(50).strength(0.2))
-      .force("x", d3.forceX(width / 2).strength(0.05))
-      .force("y", d3.forceY(height / 2).strength(0.05))
+      .force("collide", d3.forceCollide().radius(70).strength(0.5))
+      .force("x", d3.forceX(width / 2).strength(0.1))
+      .force("y", d3.forceY(height / 2).strength(0.1))
+      .velocityDecay(0.4)
+      .alphaTarget(0)
+      .alphaDecay(0.05)
+      .alpha(allNodesLocked ? 0 : alphaValueRef.current)
       .on("tick", ticked);
+    
+    if (allNodesLocked) {
+      simulation.stop();
+    }
     
     simulationRef.current = simulation;
     
@@ -893,7 +1053,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     }
     
     function dragstarted(event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) {
-      if (!event.active) simulation.alphaTarget(0.3).restart();
+      if (!event.active) simulation.alphaTarget(0.1).restart();
       
       if (!d.isLocked) {
         d.fx = d.x;
@@ -921,7 +1081,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           .attr("opacity", 0);
       }
       
-      if (!isCreatingConnection && !d.isLocked) {
+      if (!isCreatingConnection && !d.isLocked && !allNodesLocked) {
         d.fx = null;
         d.fy = null;
       }
@@ -989,29 +1149,10 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       }
     });
     
-    const glowFilter = defs.append("filter")
-      .attr("id", "glow");
-    
-    glowFilter.append("feGaussianBlur")
-      .attr("in", "SourceGraphic")
-      .attr("stdDeviation", "5")
-      .attr("result", "blur");
-    
-    glowFilter.append("feColorMatrix")
-      .attr("in", "blur")
-      .attr("type", "matrix")
-      .attr("values", "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7")
-      .attr("result", "glow");
-    
-    glowFilter.append("feBlend")
-      .attr("in", "SourceGraphic")
-      .attr("in2", "glow")
-      .attr("mode", "normal");
-    
     return () => {
       if (simulation) simulation.stop();
     };
-  }, [nodes, links, selectedElementId, hoveredNodeId, isAnimating, currentYear, isCreatingConnection, connectionSourceId, onElementSelect]);
+  }, [nodes, links, selectedElementId, hoveredNodeId, isAnimating, currentYear, isCreatingConnection, connectionSourceId, onElementSelect, allNodesLocked]);
   
   useEffect(() => {
     return () => {
@@ -1074,6 +1215,24 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
             </TooltipTrigger>
             <TooltipContent side="left">
               <p>{showExtendedRelationships ? "Hide" : "Show"} extended relationships</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant={allNodesLocked ? "default" : "outline"}
+                size="icon" 
+                className={`${allNodesLocked ? "bg-amber-500" : "bg-slate-800"} text-white hover:bg-amber-600 border-slate-600`}
+                onClick={toggleAllNodesLock}
+              >
+                {allNodesLocked ? <Lock className="h-5 w-5" /> : <Unlock className="h-5 w-5" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>{allNodesLocked ? "Unlock" : "Lock"} all nodes</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -1218,4 +1377,3 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
 };
 
 export default HistoryMap;
-
