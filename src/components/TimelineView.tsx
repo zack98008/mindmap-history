@@ -23,6 +23,14 @@ const TimelineView: React.FC<TimelineViewProps> = ({ onElementSelect }) => {
       // Force layout calculation
       timelineRef.current.style.visibility = 'visible';
       timelineRef.current.style.opacity = '1';
+      
+      // Apply specific styling to ensure timeline is visible
+      const timelineElement = timelineRef.current;
+      timelineElement.style.display = 'block';
+      timelineElement.style.minHeight = '400px';
+      
+      // Force a reflow to ensure visibility
+      void timelineElement.offsetHeight;
     }
   }, []);
   
@@ -122,10 +130,22 @@ const TimelineView: React.FC<TimelineViewProps> = ({ onElementSelect }) => {
         </Button>
       </div>
       
-      <div className="overflow-y-auto flex-grow" ref={timelineRef}>
+      <div 
+        className="overflow-y-auto flex-grow relative" 
+        ref={timelineRef}
+        style={{ 
+          visibility: 'visible', 
+          opacity: 1,
+          display: 'block',
+          minHeight: '400px'
+        }}
+      >
         <div className="relative">
-          <div className="timeline-line absolute left-6 md:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-chronoPurple via-chronoBlue to-chronoTeal"></div>
-          <div className="space-y-10">
+          <div 
+            className="timeline-line absolute left-6 md:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-chronoPurple via-chronoBlue to-chronoTeal"
+            style={{ minHeight: '100%' }}
+          ></div>
+          <div className="space-y-10 pb-10">
             {timelineItems.map((item, index) => (
               <div 
                 key={item.id}

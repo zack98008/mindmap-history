@@ -17,7 +17,11 @@ const Index = () => {
   
   useEffect(() => {
     // Ensure components have time to render properly
-    setIsLoaded(true);
+    const timer = setTimeout(() => {
+      setIsLoaded(true);
+    }, 300); // Short delay to ensure DOM is ready
+    
+    return () => clearTimeout(timer);
   }, []);
   
   const handleElementSelect = (element: HistoricalElement) => {
@@ -36,8 +40,11 @@ const Index = () => {
         <SearchBar onResultSelect={handleElementSelect} />
       </div>
       
-      <div className={`flex flex-col md:flex-row gap-8 ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
-        <div className="w-full md:w-2/3">
+      <div 
+        className={`flex flex-col md:flex-row gap-8 ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500`}
+        style={{ minHeight: 'calc(100vh - 240px)' }}
+      >
+        <div className="w-full md:w-2/3 min-h-[500px]">
           {activeView === 'map' ? (
             <HistoryMap 
               onElementSelect={handleElementSelect} 
