@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
@@ -10,7 +9,7 @@ import TextAnalyzer from '@/components/TextAnalyzer';
 import ExportDialog from '@/components/ExportDialog';
 import { Button } from '@/components/ui/button';
 import { HistoricalElement, MapNode, MapLink } from '@/types';
-import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { BrainCircuit, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { exportVisualization } from '@/services/exportService';
 
 const Index = () => {
@@ -20,7 +19,6 @@ const Index = () => {
   const [customLinks, setCustomLinks] = useState<MapLink[] | null>(null);
   const [showAnalyzer, setShowAnalyzer] = useState(false);
   
-  // Refs for export functionality
   const visualizationRef = useRef<HTMLDivElement>(null);
   
   const handleElementSelect = (element: HistoricalElement) => {
@@ -130,13 +128,21 @@ const Index = () => {
               )}
               
               <div className="mt-8 border-t pt-6 w-full">
-                <p className="font-medium mb-3">Try our new Template Builder</p>
-                <Link to="/templates">
-                  <Button className="w-full" variant="outline">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Create Topic Templates
-                  </Button>
-                </Link>
+                <p className="font-medium mb-3">Try our features</p>
+                <div className="space-y-2">
+                  <Link to="/templates">
+                    <Button className="w-full" variant="outline">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Create Topic Templates
+                    </Button>
+                  </Link>
+                  <Link to="/memorization">
+                    <Button className="w-full" variant="outline">
+                      <BrainCircuit className="h-4 w-4 mr-2" />
+                      Memorization Tools
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
           )}
