@@ -10,7 +10,7 @@ import {
   LogOut,
   Map,
   Home,
-  Layers
+  Settings
 } from 'lucide-react';
 import { 
   DropdownMenu, 
@@ -22,16 +22,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserProfile } from '@/types';
 
 interface NavBarProps {
   activeView?: 'map' | 'timeline';
   onViewChange?: (view: 'map' | 'timeline') => void;
+  userProfile?: UserProfile | null;
 }
 
 const NavBar: React.FC<NavBarProps> = ({ 
   activeView = 'map', 
-  onViewChange = () => {} 
+  onViewChange = () => {},
+  userProfile = null
 }) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -42,9 +45,11 @@ const NavBar: React.FC<NavBarProps> = ({
     navigate('/auth');
   };
   
-  const userInitials = user?.email 
-    ? user.email.substring(0, 2).toUpperCase() 
-    : 'U';
+  const userInitials = userProfile?.full_name 
+    ? userProfile.full_name.substring(0, 2).toUpperCase()
+    : user?.email 
+      ? user.email.substring(0, 2).toUpperCase() 
+      : 'U';
   
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -133,6 +138,9 @@ const NavBar: React.FC<NavBarProps> = ({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
               <Avatar>
+                {userProfile?.avatar_url ? (
+                  <AvatarImage src={userProfile.avatar_url} alt="Profile" />
+                ) : null}
                 <AvatarFallback className="bg-slate-700 text-white">
                   {userInitials}
                 </AvatarFallback>
@@ -140,7 +148,9 @@ const NavBar: React.FC<NavBarProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              {userProfile?.full_name || user?.email || 'My Account'}
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate('/')}>
               <Home className="h-4 w-4 mr-2" />

@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
   const navigate = useNavigate();
@@ -84,7 +85,12 @@ const Auth = () => {
       setLoading(true);
       const { error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: {
+            full_name: fullName || null
+          }
+        }
       });
       
       if (error) {
@@ -148,6 +154,18 @@ const Auth = () => {
           
           <TabsContent value="signup">
             <form onSubmit={handleSignup} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="full-name">Full Name (Optional)</Label>
+                <Input 
+                  id="full-name" 
+                  type="text" 
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="John Doe"
+                  className="bg-slate-800 border-slate-700"
+                />
+              </div>
+              
               <div className="space-y-2">
                 <Label htmlFor="signup-email">Email</Label>
                 <Input 

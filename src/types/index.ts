@@ -1,4 +1,3 @@
-
 export type HistoricalElementType = 'person' | 'event' | 'document' | 'concept' | 'term';
 
 export interface HistoricalElement {
@@ -57,7 +56,14 @@ export interface NodeFormData {
   y?: number;
 }
 
-// New template-related types
+export interface UserProfile {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface TemplateComponent {
   id: string;
@@ -83,7 +89,6 @@ export interface Topic {
   relationships: Relationship[];
 }
 
-// Add network analysis return type
 export interface NetworkAnalysisResult {
   nodes: Set<string>;
   nodeDepths: Map<string, number>;

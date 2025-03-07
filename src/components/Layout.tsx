@@ -1,6 +1,7 @@
 
 import React from "react";
 import NavBar from "./NavBar";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,9 +14,15 @@ const Layout: React.FC<LayoutProps> = ({
   activeView, 
   onViewChange 
 }) => {
+  const { userProfile } = useAuth();
+  
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
-      <NavBar activeView={activeView} onViewChange={onViewChange} />
+      <NavBar 
+        activeView={activeView} 
+        onViewChange={onViewChange} 
+        userProfile={userProfile}
+      />
       {children}
     </div>
   );

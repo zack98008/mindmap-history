@@ -1,10 +1,10 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { 
   HistoricalElement, 
   Relationship, 
   MapNode, 
-  MapLink 
+  MapLink,
+  UserProfile
 } from '@/types';
 import { toast } from 'sonner';
 
@@ -451,6 +451,50 @@ export const saveMapLinks = async (mapId: string, links: MapLink[]): Promise<boo
     console.error('Error saving map links:', error);
     toast.error('Failed to save map links');
     return false;
+  }
+};
+
+// Profile management
+export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    
+    if (error) throw error;
+    
+    return data as UserProfile;
+  } catch (error: any) {
+    console.error('Error fetching user profile:', error);
+    return null;
+  }
+};
+
+export const updateUserProfile = async (
+  userId: string, 
+  updates: { full_name?: string; avatar_url?: string }
+): Promise<UserProfile | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    toast.success('Profile updated successfully');
+    return data as UserProfile;
+  } catch (error: any) {
+    console.error('Error updating user profile:', error);
+    toast.error('Failed to update profile');
+    return null;
   }
 };
 
