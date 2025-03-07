@@ -222,7 +222,10 @@ export const generateMapNodes = () => {
       y,
       element,
       originalX: x,
-      originalY: y
+      originalY: y,
+      layer: undefined,
+      opacity: undefined,
+      isLocked: false
     };
   });
 };

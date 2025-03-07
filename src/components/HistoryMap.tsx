@@ -1,3 +1,4 @@
+<lov-code>
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { generateMapNodes, generateMapLinks, getElementById, getTimelineItems, generateExtendedMapData } from '@/utils/dummyData';
 import { HistoricalElement, MapNode, MapLink, TimelineItem, HistoricalElementType, NodeFormData } from '@/types';
@@ -388,6 +389,28 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     }
   };
 
+  const dragstarted = (event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) => {
+    if (d.isLocked) return; // Don't drag locked nodes
+    if (!event.active) simulationRef.current?.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+  };
+
+  const dragged = (event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) => {
+    if (d.isLocked) return; // Don't drag locked nodes
+    d.fx = event.x;
+    d.fy = event.y;
+  };
+
+  const dragended = (event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) => {
+    if (d.isLocked) return; // Don't drag locked nodes
+    if (!event.active) simulationRef.current?.alphaTarget(0);
+    if (!d.isLocked) {
+      d.fx = null;
+      d.fy = null;
+    }
+  };
+
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
     
@@ -520,7 +543,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       .enter().append("g")
       .attr("class", "node-container")
       .attr("opacity", d => d.opacity !== undefined ? d.opacity : 0)
-      .call(d3.drag<SVGGElement, MapNode>()
+      .call(d3.drag<SVGGElement, MapNode, MapNode>()
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended));
@@ -734,338 +757,4 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           .style("justify-content", "center")
           .style("align-items", "center");
         
-        const editIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        editIconSvg.setAttribute("width", "16");
-        editIconSvg.setAttribute("height", "16");
-        editIconSvg.setAttribute("viewBox", "0 0 24 24");
         
-        const editIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        editIconPath.setAttribute("d", "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7");
-        editIconPath.setAttribute("fill", "none");
-        editIconPath.setAttribute("stroke", "#9b87f5");
-        editIconPath.setAttribute("stroke-width", "2");
-        
-        const editIconPath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        editIconPath2.setAttribute("d", "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z");
-        editIconPath2.setAttribute("fill", "none");
-        editIconPath2.setAttribute("stroke", "#9b87f5");
-        editIconPath2.setAttribute("stroke-width", "2");
-        
-        editIconSvg.appendChild(editIconPath);
-        editIconSvg.appendChild(editIconPath2);
-        editIconContainer.node()!.appendChild(editIconSvg);
-        
-        const connectButton = controlsGroup.append("circle")
-          .attr("cx", 0)
-          .attr("cy", 0)
-          .attr("r", 12)
-          .attr("fill", "rgba(255, 255, 255, 0.9)")
-          .attr("stroke", "#0EA5E9")
-          .attr("cursor", "pointer")
-          .on("click", function(event) {
-            event.stopPropagation();
-            startConnection(d.id);
-          });
-        
-        const connectFO = controlsGroup.append("foreignObject")
-          .attr("width", 24)
-          .attr("height", 24)
-          .attr("x", -12)
-          .attr("y", -12)
-          .style("pointer-events", "none");
-        
-        const connectIconContainer = connectFO.append("xhtml:div")
-          .style("width", "100%")
-          .style("height", "100%")
-          .style("display", "flex")
-          .style("justify-content", "center")
-          .style("align-items", "center");
-        
-        const connectIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        connectIconSvg.setAttribute("width", "16");
-        connectIconSvg.setAttribute("height", "16");
-        connectIconSvg.setAttribute("viewBox", "0 0 24 24");
-        
-        const connectIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        connectIconPath.setAttribute("d", "M8 12h8M12 8v8");
-        connectIconPath.setAttribute("fill", "none");
-        connectIconPath.setAttribute("stroke", "#0EA5E9");
-        connectIconPath.setAttribute("stroke-width", "2");
-        connectIconPath.setAttribute("stroke-linecap", "round");
-        
-        connectIconSvg.appendChild(connectIconPath);
-        connectIconContainer.node()!.appendChild(connectIconSvg);
-        
-        const deleteButton = controlsGroup.append("circle")
-          .attr("cx", 25)
-          .attr("cy", 0)
-          .attr("r", 12)
-          .attr("fill", "rgba(255, 255, 255, 0.9)")
-          .attr("stroke", "#ef4444")
-          .attr("cursor", "pointer")
-          .on("click", function(event) {
-            event.stopPropagation();
-            deleteNode(d.id);
-          });
-        
-        const deleteFO = controlsGroup.append("foreignObject")
-          .attr("width", 24)
-          .attr("height", 24)
-          .attr("x", 13)
-          .attr("y", -12)
-          .style("pointer-events", "none");
-        
-        const deleteIconContainer = deleteFO.append("xhtml:div")
-          .style("width", "100%")
-          .style("height", "100%")
-          .style("display", "flex")
-          .style("justify-content", "center")
-          .style("align-items", "center");
-        
-        const deleteIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        deleteIconSvg.setAttribute("width", "16");
-        deleteIconSvg.setAttribute("height", "16");
-        deleteIconSvg.setAttribute("viewBox", "0 0 24 24");
-        
-        const deleteIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        deleteIconPath.setAttribute("d", "M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6");
-        deleteIconPath.setAttribute("fill", "none");
-        deleteIconPath.setAttribute("stroke", "#ef4444");
-        deleteIconPath.setAttribute("stroke-width", "2");
-        deleteIconPath.setAttribute("stroke-linecap", "round");
-        
-        deleteIconSvg.appendChild(deleteIconPath);
-        deleteIconContainer.node()!.appendChild(deleteIconSvg);
-      }
-    });
-    
-    const glowFilter = defs.append("filter")
-      .attr("id", "glow");
-    
-    glowFilter.append("feGaussianBlur")
-      .attr("in", "SourceGraphic")
-      .attr("stdDeviation", "5")
-      .attr("result", "blur");
-    
-    glowFilter.append("feColorMatrix")
-      .attr("in", "blur")
-      .attr("type", "matrix")
-      .attr("values", "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7")
-      .attr("result", "glow");
-    
-    glowFilter.append("feBlend")
-      .attr("in", "SourceGraphic")
-      .attr("in2", "glow")
-      .attr("mode", "normal");
-    
-    return () => {
-      if (simulation) simulation.stop();
-    };
-  }, [nodes, links, selectedElementId, hoveredNodeId, isAnimating, currentYear, isCreatingConnection, connectionSourceId, onElementSelect]);
-  
-  useEffect(() => {
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, []);
-  
-  return (
-    <div className="relative w-full h-full flex flex-col bg-slate-900">
-      <div className="absolute top-4 right-4 flex flex-col space-y-2 z-10">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="bg-slate-800 text-white hover:bg-slate-700 border-slate-600"
-                onClick={() => setIsCreatingNode(true)}
-              >
-                <Plus className="h-5 w-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Add new node</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="bg-slate-800 text-white hover:bg-slate-700 border-slate-600"
-                onClick={toggleAnimation}
-              >
-                {isAnimating ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>{isAnimating ? "Pause" : "Play"} timeline animation</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant={showExtendedRelationships ? "default" : "outline"}
-                size="icon" 
-                className={`${showExtendedRelationships ? "bg-indigo-600" : "bg-slate-800"} text-white hover:bg-indigo-700 border-slate-600`}
-                onClick={() => setShowExtendedRelationships(!showExtendedRelationships)}
-              >
-                <Layers className="h-5 w-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>{showExtendedRelationships ? "Hide" : "Show"} extended relationships</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-      
-      {isAnimating && (
-        <div className="absolute top-4 left-4 bg-slate-800 text-white px-3 py-1 rounded-md flex items-center">
-          <Clock className="h-4 w-4 mr-2" />
-          <span className="font-mono">{currentYear}</span>
-        </div>
-      )}
-      
-      {showExtendedRelationships && (
-        <div className="absolute bottom-4 right-4 bg-slate-800 text-white px-3 py-2 rounded-md">
-          <label className="block text-xs text-slate-400">Relationship Depth</label>
-          <div className="flex items-center space-x-2 mt-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 bg-slate-700 hover:bg-slate-600 border-slate-600"
-              onClick={() => setMaxRelationshipDepth(Math.max(1, maxRelationshipDepth - 1))}
-              disabled={maxRelationshipDepth <= 1}
-            >
-              -
-            </Button>
-            <span className="w-4 text-center">{maxRelationshipDepth}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 bg-slate-700 hover:bg-slate-600 border-slate-600"
-              onClick={() => setMaxRelationshipDepth(Math.min(5, maxRelationshipDepth + 1))}
-              disabled={maxRelationshipDepth >= 5}
-            >
-              +
-            </Button>
-          </div>
-        </div>
-      )}
-      
-      <div ref={containerRef} className="flex-1 overflow-hidden">
-        <svg ref={svgRef} className="w-full h-full"></svg>
-      </div>
-      
-      <Dialog open={showNodeForm} onOpenChange={setShowNodeForm}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{editingNodeId ? "Edit Node" : "Create New Node"}</DialogTitle>
-            <DialogDescription>
-              {editingNodeId 
-                ? "Update the details of this historical element" 
-                : "Add a new historical element to the knowledge graph"}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4">
-            <div className="grid grid-cols-4 gap-4">
-              <div className="col-span-4">
-                <Label htmlFor="name">Name</Label>
-                <Input 
-                  id="name" 
-                  name="name" 
-                  value={nodeFormData.name} 
-                  onChange={handleInputChange} 
-                  placeholder="Enter entity name"
-                />
-              </div>
-              
-              <div className="col-span-2">
-                <Label htmlFor="type">Type</Label>
-                <Select 
-                  value={nodeFormData.type} 
-                  onValueChange={(value) => handleSelectChange("type", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="person">Person</SelectItem>
-                    <SelectItem value="event">Event</SelectItem>
-                    <SelectItem value="document">Document</SelectItem>
-                    <SelectItem value="concept">Concept</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="col-span-2">
-                <Label htmlFor="date">Date</Label>
-                <Input 
-                  id="date" 
-                  name="date" 
-                  value={nodeFormData.date} 
-                  onChange={handleInputChange} 
-                  placeholder="YYYY-MM-DD"
-                />
-              </div>
-              
-              <div className="col-span-4">
-                <Label htmlFor="description">Description</Label>
-                <Textarea 
-                  id="description" 
-                  name="description" 
-                  value={nodeFormData.description} 
-                  onChange={handleInputChange} 
-                  placeholder="Enter a description"
-                  className="resize-none"
-                  rows={3}
-                />
-              </div>
-              
-              <div className="col-span-4">
-                <Label htmlFor="tags">Tags</Label>
-                <Input 
-                  id="tags" 
-                  name="tags" 
-                  value={nodeFormData.tags} 
-                  onChange={handleInputChange} 
-                  placeholder="Comma separated tags"
-                />
-              </div>
-              
-              <div className="col-span-4">
-                <Label htmlFor="imageUrl">Image URL</Label>
-                <Input 
-                  id="imageUrl" 
-                  name="imageUrl" 
-                  value={nodeFormData.imageUrl} 
-                  onChange={handleInputChange} 
-                  placeholder="Optional: URL to an image"
-                />
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNodeForm(false)}>Cancel</Button>
-            <Button onClick={saveNodeForm}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default HistoryMap;
-
