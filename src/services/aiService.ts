@@ -1,4 +1,5 @@
 
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { HistoricalElement, HistoricalElementType, MapNode, MapLink, Relationship } from '@/types';
 
 // This would be safer to store in an environment variable
@@ -93,52 +94,32 @@ export const convertToMapNodes = (results: AnalysisResult): { nodes: MapNode[], 
 
 export const analyzeText = async (text: string): Promise<{ nodes: MapNode[], links: MapLink[] }> => {
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
+    // Use the user's API key if provided via the window object
+    const userApiKey = (window as any).GEMINI_API_KEY || API_KEY;
     
-    const payload = {
-      contents: [{
-        parts: [{
-          text: `
-          Analyze the following text and extract historical entities (people, events, documents, concepts) and their relationships.
-          Return the results in JSON format with two arrays:
-          1. "entities" - Each entity should have: name, type (one of: person, event, document, concept), description, date (if applicable), year (numeric), tags (array of strings)
-          2. "relationships" - Each relationship should have: source (entity name), target (entity name), description, type (one of: influenced, created, participated, documented, custom)
-          
-          Format the response ONLY as valid parseable JSON with no other text.
-          
-          Here's the text to analyze:
-          ${text}
-          `
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 2048
-      }
-    };
+    // Initialize the Gemini API
+    const genAI = new GoogleGenerativeAI(userApiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+    const prompt = `
+      Analyze the following text and extract historical entities (people, events, documents, concepts) and their relationships.
+      Return the results in JSON format with two arrays:
+      1. "entities" - Each entity should have: name, type (one of: person, event, document, concept), description, date (if applicable), year (numeric), tags (array of strings)
+      2. "relationships" - Each relationship should have: source (entity name), target (entity name), description, type (one of: influenced, created, participated, documented, custom)
+      
+      Format the response ONLY as valid parseable JSON with no other text.
+      
+      Here's the text to analyze:
+      ${text}
+    `;
     
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
-    }
-    
-    const data = await response.json();
-    const generatedText = data.candidates[0]?.content?.parts[0]?.text;
-    
-    if (!generatedText) {
-      throw new Error('No content generated from the AI');
-    }
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const textResponse = response.text();
     
     // Find the JSON part using regex (Gemini sometimes adds explanatory text)
-    const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : generatedText;
+    const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : textResponse;
     
     // Parse the JSON response
     const analysisResult = JSON.parse(jsonStr) as AnalysisResult;

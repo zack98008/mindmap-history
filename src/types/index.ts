@@ -1,3 +1,4 @@
+
 export type HistoricalElementType = 'person' | 'event' | 'document' | 'concept' | 'term';
 
 export interface HistoricalElement {
@@ -80,4 +81,10 @@ export interface Topic {
   template: TemplateStructure;
   elements: HistoricalElement[];
   relationships: Relationship[];
+}
+
+// Add network analysis return type
+export interface NetworkAnalysisResult {
+  nodes: Set<string>;
+  nodeDepths: Map<string, number>;
 }

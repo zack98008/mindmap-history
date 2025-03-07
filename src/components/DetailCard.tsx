@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { X, User, Calendar, FileText, Lightbulb, Link, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,7 +17,9 @@ const DetailCard: React.FC<DetailCardProps> = ({ element, onClose, onElementSele
   const directRelatedElements = getRelatedElements(element.id);
   
   // Get extended relationship data
-  const { nodes: extendedNodeIds, nodeDepths } = getRelationshipsByDepth(element.id, 3);
+  const extendedNetworkData = getRelationshipsByDepth(element.id, 3);
+  const extendedNodeIds = extendedNetworkData.nodes || new Set();
+  const nodeDepths = extendedNetworkData.nodeDepths || new Map();
   
   // Filter out the current element and direct connections to get 2nd and 3rd degree connections
   const extendedElements = Array.from(extendedNodeIds)
