@@ -26,9 +26,9 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
     }
   }, [loading, user, location, initialLoadComplete]);
   
-  // Show loading spinner only on initial load, not on subsequent route changes
-  // Also don't show spinner if we're redirecting to auth page
-  if (loading && !initialLoadComplete) {
+  // Show loading spinner only on initial page load, not on subsequent route changes
+  // Also don't show spinner if we already know we're redirecting to auth page
+  if (loading && !initialLoadComplete && !location.pathname.includes('/auth')) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>

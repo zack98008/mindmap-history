@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error('Error fetching user profile:', error);
@@ -63,9 +63,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(true);
         console.log("AuthProvider: Fetching initial session");
         
-        // Get session from local storage first
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log("AuthProvider: Initial session", { exists: !!session, user: session?.user?.email });
+        // Get session directly
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) {
+            setLoading(false);
+            setAuthChecked(true);
+          }
+          return;
+        }
+        
+        console.log("AuthProvider: Initial session", { 
+          exists: !!session, 
+          user: session?.user?.email 
+        });
         
         if (session && mounted) {
           setSession(session);
@@ -76,30 +89,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUserProfile(profile);
           }
         }
+        
+        if (mounted) {
+          setLoading(false);
+          setAuthChecked(true);
+        }
       } catch (error) {
         console.error('Error getting initial session:', error);
-      } finally {
         if (mounted) {
-          // Always set loading to false even if there's no session
           setLoading(false);
           setAuthChecked(true);
         }
       }
     };
 
-    // Initialize auth state
     getInitialSession();
 
+    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("AuthProvider: Auth state changed", { event, user: session?.user?.email });
+      async (event, newSession) => {
+        console.log("AuthProvider: Auth state changed", { 
+          event, 
+          user: newSession?.user?.email 
+        });
         
         if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
           
-          if (session?.user) {
-            const profile = await fetchUserProfile(session.user.id);
+          if (newSession?.user) {
+            const profile = await fetchUserProfile(newSession.user.id);
             if (mounted) {
               setUserProfile(profile);
             }
@@ -119,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Ensure we reset loading state after a short timeout if it gets stuck
+  // Shorter safety timeout to ensure loading state doesn't get stuck
   useEffect(() => {
     const timer = setTimeout(() => {
       if (loading && !authChecked) {
@@ -127,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         setAuthChecked(true);
       }
-    }, 3000); // Reduced to 3 second safety timeout
+    }, 2000); // Reduced to 2 second safety timeout
 
     return () => clearTimeout(timer);
   }, [loading, authChecked]);
@@ -136,7 +155,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log("AuthProvider: Signing out");
       setLoading(true);
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+      }
       // State will be updated by the onAuthStateChange event
     } catch (error) {
       console.error('Error signing out:', error);

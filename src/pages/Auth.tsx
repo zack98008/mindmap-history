@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,31 +14,26 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Check if user is already logged in
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("Error checking session:", error);
+        return;
+      }
+      
       if (data.session) {
-        navigate('/');
+        // Redirect to requested page or home
+        const from = location.state?.from?.pathname || '/';
+        navigate(from, { replace: true });
       }
     };
     
     checkSession();
-    
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session) {
-          navigate('/');
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
+  }, [navigate, location]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,11 +55,11 @@ const Auth = () => {
       }
       
       toast.success('Login successful!');
+      // Redirect will happen in the useEffect
     } catch (error: any) {
       toast.error(error.message || 'An error occurred during login');
       setLoading(false); // Make sure to set loading to false on error
     }
-    // No finally block - loading will be managed by auth state change
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -98,11 +92,11 @@ const Auth = () => {
       }
       
       toast.success('Registration successful! Please check your email to confirm your account.');
+      setLoading(false);
     } catch (error: any) {
       toast.error(error.message || 'An error occurred during signup');
-      setLoading(false); // Make sure to set loading to false on error
+      setLoading(false);
     }
-    // No finally block - loading will be managed by auth state change
   };
 
   return (
