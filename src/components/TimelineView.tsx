@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useRef, useEffect } from 'react';
 import { getTimelineItems } from '@/utils/dummyData';
 import { HistoricalElement } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,16 @@ interface TimelineViewProps {
 const TimelineView: React.FC<TimelineViewProps> = ({ onElementSelect }) => {
   const timelineItems = getTimelineItems();
   const { toast } = useToast();
-  const timelineRef = React.useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  
+  // Make sure the timeline is visible when component mounts
+  useEffect(() => {
+    if (timelineRef.current) {
+      // Force layout calculation
+      timelineRef.current.style.visibility = 'visible';
+      timelineRef.current.style.opacity = '1';
+    }
+  }, []);
   
   const getTypeColor = (type: string) => {
     switch(type) {
@@ -114,7 +124,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({ onElementSelect }) => {
       
       <div className="overflow-y-auto flex-grow" ref={timelineRef}>
         <div className="relative">
-          <div className="timeline-line"></div>
+          <div className="timeline-line absolute left-6 md:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-chronoPurple via-chronoBlue to-chronoTeal"></div>
           <div className="space-y-10">
             {timelineItems.map((item, index) => (
               <div 
