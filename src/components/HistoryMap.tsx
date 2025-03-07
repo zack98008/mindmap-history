@@ -30,24 +30,24 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     }
   };
 
-  // Function to get node shape data based on type
+  // Function to get node shape path based on type
   const getNodeShapePath = (type: string, size = 30) => {
     switch(type) {
       case 'person': 
         // Hexagon for person
-        return d3.symbol().type(d3.symbolHexagon).size(size * 40)();
+        return d3.symbol(d3.symbolHexagon, size * 40)();
       case 'event': 
         // Diamond for event
-        return d3.symbol().type(d3.symbolDiamond).size(size * 40)();
+        return d3.symbol(d3.symbolDiamond, size * 40)();
       case 'document': 
         // Square for document
-        return d3.symbol().type(d3.symbolSquare).size(size * 40)();
+        return d3.symbol(d3.symbolSquare, size * 40)();
       case 'concept': 
         // Star for concept
-        return d3.symbol().type(d3.symbolStar).size(size * 40)();
+        return d3.symbol(d3.symbolStar, size * 40)();
       default:
         // Circle as fallback
-        return d3.symbol().type(d3.symbolCircle).size(size * 40)();
+        return d3.symbol(d3.symbolCircle, size * 40)();
     }
   };
 
