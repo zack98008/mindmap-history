@@ -1,9 +1,8 @@
-
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { generateMapNodes, generateMapLinks, getElementById, getTimelineItems, generateExtendedMapData } from '@/utils/dummyData';
 import { HistoricalElement, MapNode, MapLink, TimelineItem, HistoricalElementType, NodeFormData } from '@/types';
 import * as d3 from 'd3';
-import { Circle, Square, Diamond, Star, Clock, Play, Pause, Layers, Plus, Pencil, Trash, X, Check } from 'lucide-react';
+import { Circle, Square, Diamond, Star, Clock, Play, Pause, Layers, Plus, Pencil, Trash, X, Check, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,7 +27,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   const [links, setLinks] = useState<MapLink[]>(generateMapLinks());
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>(getTimelineItems());
   
-  // Node creation, editing, and deletion states
   const [isCreatingNode, setIsCreatingNode] = useState(false);
   const [isCreatingConnection, setIsCreatingConnection] = useState(false);
   const [connectionSourceId, setConnectionSourceId] = useState<string | null>(null);
@@ -43,21 +41,17 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   });
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   
-  // Relationship depth visualization
   const [maxRelationshipDepth, setMaxRelationshipDepth] = useState<number>(3);
   const [showExtendedRelationships, setShowExtendedRelationships] = useState<boolean>(true);
   
-  // Animation states
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentYear, setCurrentYear] = useState(1400);
   const [targetYear, setTargetYear] = useState(2000);
-  const animationSpeedRef = useRef(50); // ms per year
+  const animationSpeedRef = useRef(50);
   const animationRef = useRef<number | null>(null);
   
-  // D3 simulation reference
   const simulationRef = useRef<any>(null);
   
-  // Years for timeline
   const yearRange = useMemo(() => {
     const years = timelineItems.map(item => item.year);
     return {
@@ -66,7 +60,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     };
   }, [timelineItems]);
   
-  // Function to get node color based on type with more meaningful associations
   const getNodeColor = (type: string) => {
     switch(type) {
       case 'person': return '#9b87f5'; 
@@ -77,12 +70,10 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     }
   };
 
-  // Generate a unique ID
   const generateUniqueId = () => {
     return 'node_' + Math.random().toString(36).substr(2, 9);
   };
 
-  // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setNodeFormData({
@@ -91,7 +82,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     });
   };
 
-  // Handle select changes
   const handleSelectChange = (name: string, value: string) => {
     setNodeFormData({
       ...nodeFormData,
@@ -99,7 +89,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     });
   };
 
-  // Create a new node
   const createNode = (x: number, y: number) => {
     setNodeFormData({
       name: '',
@@ -111,7 +100,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     });
     setEditingNodeId(null);
     setShowNodeForm(true);
-    // Store the position for the new node
     setNodeFormData(prev => ({
       ...prev,
       x,
@@ -119,7 +107,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     }));
   };
 
-  // Edit existing node
   const editNode = (nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (node) {
@@ -136,29 +123,22 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     }
   };
 
-  // Delete node
   const deleteNode = (nodeId: string) => {
-    // Remove the node
     setNodes(nodes.filter(node => node.id !== nodeId));
-    
-    // Remove any links connected to this node
     setLinks(links.filter(link => {
       const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
       const targetId = typeof link.target === 'string' ? link.target : link.target.id;
       return sourceId !== nodeId && targetId !== nodeId;
     }));
-    
     toast({
       title: "Node Deleted",
       description: "The node has been successfully removed.",
     });
   };
 
-  // Save node form data
   const saveNodeForm = () => {
     const { name, type, date, description, tags, imageUrl, x, y } = nodeFormData;
     
-    // Basic validation
     if (!name.trim()) {
       toast({
         title: "Error",
@@ -171,7 +151,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
     
     if (editingNodeId) {
-      // Update existing node
       setNodes(nodes.map(node => {
         if (node.id === editingNodeId) {
           return {
@@ -197,7 +176,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         description: "The node has been successfully updated.",
       });
     } else {
-      // Create new node
       const newNodeId = generateUniqueId();
       const newNode: MapNode = {
         id: newNodeId,
@@ -217,7 +195,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       
       setNodes([...nodes, newNode]);
       
-      // If we're creating a connection, create the link too
       if (isCreatingConnection && connectionSourceId) {
         const newLinkId = `link_${generateUniqueId()}`;
         const newLink: MapLink = {
@@ -255,13 +232,11 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     });
     setEditingNodeId(null);
     
-    // Restart simulation
     if (simulationRef.current) {
       simulationRef.current.alpha(0.3).restart();
     }
   };
 
-  // Start connection creation
   const startConnection = (nodeId: string) => {
     setIsCreatingConnection(true);
     setConnectionSourceId(nodeId);
@@ -271,7 +246,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     });
   };
 
-  // Get node icon based on type
   const getNodeIcon = (type: string, size = 20, color: string) => {
     const iconProps = {
       size: size,
@@ -294,23 +268,20 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     }
   };
 
-  // Calculate node visibility based on the current year
   const calculateNodeVisibility = (node: MapNode, year: number): number => {
     const nodeYear = node.element.year || parseInt(node.element.date?.split('-')[0] || '0');
     
-    if (nodeYear === 0) return 1; // Always show nodes without years
-    if (nodeYear > year) return 0; // Hide future nodes
+    if (nodeYear === 0) return 1;
+    if (nodeYear > year) return 0;
     
-    // Fade in gradually for recently appeared nodes
-    const fadeInPeriod = 10; // Years
+    const fadeInPeriod = 10;
     if (year - nodeYear < fadeInPeriod) {
       return (year - nodeYear) / fadeInPeriod;
     }
     
     return 1;
   };
-  
-  // Calculate link visibility based on the current year and connected nodes
+
   const calculateLinkVisibility = (link: MapLink, year: number, nodesMap: Map<string, MapNode>): number => {
     const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
     const targetId = typeof link.target === 'string' ? link.target : link.target.id;
@@ -326,7 +297,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     return Math.min(sourceOpacity, targetOpacity);
   };
 
-  // Animation step
   const animateStep = () => {
     if (currentYear >= targetYear) {
       setIsAnimating(false);
@@ -340,8 +310,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     setCurrentYear(prev => Math.min(prev + 1, targetYear));
     animationRef.current = requestAnimationFrame(animateStep);
   };
-  
-  // Start/stop animation
+
   const toggleAnimation = () => {
     if (isAnimating) {
       setIsAnimating(false);
@@ -357,20 +326,49 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       animationRef.current = requestAnimationFrame(animateStep);
     }
   };
-  
-  // Update data when selected element or relationship depth changes
+
   useEffect(() => {
     if (showExtendedRelationships && selectedElementId) {
       const { nodes: extendedNodes, links: extendedLinks } = generateExtendedMapData(selectedElementId, maxRelationshipDepth);
-      setNodes(extendedNodes);
+      
+      const updatedNodes = extendedNodes.map(node => {
+        if (node.id === selectedElementId) {
+          return {
+            ...node,
+            isLocked: true,
+            fx: node.x,
+            fy: node.y,
+          };
+        }
+        return node;
+      });
+      
+      setNodes(updatedNodes);
       setLinks(extendedLinks);
     } else {
-      setNodes(generateMapNodes());
+      const basicNodes = generateMapNodes();
+      
+      if (selectedElementId) {
+        const updatedNodes = basicNodes.map(node => {
+          if (node.id === selectedElementId) {
+            return {
+              ...node,
+              isLocked: true,
+              fx: node.x,
+              fy: node.y,
+            };
+          }
+          return node;
+        });
+        setNodes(updatedNodes);
+      } else {
+        setNodes(basicNodes);
+      }
+      
       setLinks(generateMapLinks());
     }
   }, [selectedElementId, maxRelationshipDepth, showExtendedRelationships]);
-  
-  // Handle background click for node creation
+
   const handleBackgroundClick = (event: React.MouseEvent<SVGRectElement>) => {
     if (isCreatingNode) {
       const rect = svgRef.current?.getBoundingClientRect();
@@ -381,7 +379,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       }
       setIsCreatingNode(false);
     } else if (isCreatingConnection) {
-      // If clicking on background while creating connection, cancel connection
       setIsCreatingConnection(false);
       setConnectionSourceId(null);
       toast({
@@ -390,8 +387,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       });
     }
   };
-  
-  // Initialize D3 visualization
+
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
     
@@ -399,10 +395,8 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
     
-    // Clear previous elements
     svg.selectAll("*").remove();
     
-    // Add zoom functionality
     const zoom = d3.zoom()
       .scaleExtent([0.3, 3])
       .on("zoom", (event) => {
@@ -411,25 +405,20 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     
     svg.call(zoom as any);
     
-    // Add a background panel for catching events
     svg.append("rect")
       .attr("width", width)
       .attr("height", height)
       .attr("fill", "transparent")
       .on("click", function(event) {
-        // Convert D3 event to React event
         const reactEvent = { clientX: event.clientX, clientY: event.clientY } as React.MouseEvent<SVGRectElement>;
         handleBackgroundClick(reactEvent);
       });
     
-    // Create main group that will be transformed
     const mainGroup = svg.append("g")
       .attr("class", "main-group");
     
-    // Define gradient for links
     const defs = svg.append("defs");
     
-    // Create multiple gradients for different relationship types
     const gradientTypes = [
       {id: "linkGradient-default", colors: [{offset: "0%", color: "rgba(255, 255, 255, 0.1)"}, {offset: "100%", color: "rgba(255, 255, 255, 0.4)"}]},
       {id: "linkGradient-influenced", colors: [{offset: "0%", color: "rgba(139, 92, 246, 0.1)"}, {offset: "100%", color: "rgba(139, 92, 246, 0.4)"}]},
@@ -450,7 +439,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       });
     });
     
-    // Create image filter for transparency with faded edges
     const filter = defs.append("filter")
       .attr("id", "image-fade")
       .attr("x", "-50%")
@@ -458,20 +446,17 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       .attr("width", "200%")
       .attr("height", "200%");
     
-    // Gaussian blur for faded edges
     filter.append("feGaussianBlur")
       .attr("in", "SourceAlpha")
       .attr("stdDeviation", "3")
       .attr("result", "blur");
     
-    // Create composite with original image
     const feMerge = filter.append("feMerge");
     feMerge.append("feMergeNode")
       .attr("in", "blur");
     feMerge.append("feMergeNode")
       .attr("in", "SourceGraphic");
     
-    // Define arrow markers with gradient fill
     defs.selectAll("marker")
       .data(["default", "influenced", "created", "participated", "documented"])
       .enter().append("marker")
@@ -494,14 +479,12 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       })
       .attr("d", "M0,-5L10,0L0,5");
     
-    // Create links with elegant gradients and layer-based opacity
     const link = mainGroup.append("g")
       .selectAll("path")
       .data(links)
       .enter().append("path")
       .attr("class", "link")
       .attr("stroke", d => {
-        // Use relationship type to determine gradient
         if (d.relationship.type === "influenced") return "url(#linkGradient-influenced)";
         if (d.relationship.type === "created") return "url(#linkGradient-created)";
         if (d.relationship.type === "participated") return "url(#linkGradient-participated)";
@@ -509,7 +492,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         return "url(#linkGradient-default)";
       })
       .attr("stroke-width", d => {
-        // Set thicker stroke for direct connections, thinner for secondary/tertiary
         if (d.layer === 1) return 2;
         if (d.layer === 2) return 1.5;
         if (d.layer === 3) return 1;
@@ -517,7 +499,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       })
       .attr("fill", "none")
       .attr("marker-end", d => {
-        // Use relationship type to determine marker
         if (d.relationship.type === "influenced") return "url(#arrow-influenced)";
         if (d.relationship.type === "created") return "url(#arrow-created)";
         if (d.relationship.type === "participated") return "url(#arrow-participated)";
@@ -525,55 +506,48 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         return "url(#arrow-default)";
       })
       .style("stroke-dasharray", d => {
-        // Different dash patterns for different relationship types
         if (d.relationship.type === "influenced") return "1, 0";
         if (d.relationship.type === "created") return "1, 0";
         if (d.relationship.type === "participated") return "5, 5";
         if (d.relationship.type === "documented") return "10, 2";
         return "1, 0";
       })
-      .style("opacity", d => d.opacity !== undefined ? d.opacity : 0); // Use layer-based opacity
-
-    // Create node containers with layer information
+      .style("opacity", d => d.opacity !== undefined ? d.opacity : 0);
+    
     const nodeContainer = mainGroup.append("g")
       .selectAll("g")
       .data(nodes)
       .enter().append("g")
       .attr("class", "node-container")
-      .attr("opacity", d => d.opacity !== undefined ? d.opacity : 0) // Layer-based opacity
+      .attr("opacity", d => d.opacity !== undefined ? d.opacity : 0)
       .call(d3.drag<SVGGElement, MapNode>()
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended));
     
-    // Add glow effects for nodes with layer-based intensity
     nodeContainer.append("circle")
       .attr("class", "node-glow")
       .attr("r", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 30 : 25)
-      .attr("fill", d => `${getNodeColor(d.element.type)}${d.layer === 1 ? '33' : d.layer === 2 ? '22' : '11'}`) // Adjust transparency based on layer
+      .attr("fill", d => `${getNodeColor(d.element.type)}${d.layer === 1 ? '33' : d.layer === 2 ? '22' : '11'}`)
       .attr("filter", "url(#glow)")
       .attr("opacity", d => {
         const baseOpacity = (d.id === selectedElementId || d.id === hoveredNodeId) ? 0.7 : 0.3;
-        // Reduce opacity for extended relationship layers
         if (d.layer === 1) return baseOpacity;
         if (d.layer === 2) return baseOpacity * 0.75;
         if (d.layer === 3) return baseOpacity * 0.5;
         return baseOpacity * 0.3;
       });
     
-    // Add transparent images with faded edges
     nodeContainer.each(function(d) {
       if (d.element.imageUrl) {
         const node = d3.select(this);
         
-        // Add a clipPath for circular images
         const clipPathId = `clip-${d.id}`;
         defs.append("clipPath")
           .attr("id", clipPathId)
           .append("circle")
           .attr("r", 24);
         
-        // Add the image with layer-based opacity
         node.append("image")
           .attr("xlink:href", d.element.imageUrl)
           .attr("width", 50)
@@ -583,11 +557,10 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           .attr("clip-path", `url(#${clipPathId})`)
           .attr("filter", "url(#image-fade)")
           .attr("class", "node-image")
-          .attr("opacity", d.layer === 1 ? 1 : d.layer === 2 ? 0.8 : 0.6); // Adjust image opacity based on layer
+          .attr("opacity", d.layer === 1 ? 1 : d.layer === 2 ? 0.8 : 0.6);
       }
     });
     
-    // Create SVG foreignObject to hold React components
     const nodeIcons = nodeContainer.append("foreignObject")
       .attr("width", 50)
       .attr("height", 50)
@@ -596,13 +569,11 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       .attr("class", "node-icon")
       .style("pointer-events", "none");
       
-    // Render React icons to SVG
     nodeContainer.each(function(d) {
       const fo = d3.select(this).select("foreignObject");
       const iconColor = getNodeColor(d.element.type);
       const iconSize = (d.id === selectedElementId || d.id === hoveredNodeId) ? 28 : 24;
       
-      // Create a div to render React components
       const iconContainer = fo.append("xhtml:div")
         .style("width", "100%")
         .style("height", "100%")
@@ -610,7 +581,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         .style("justify-content", "center")
         .style("align-items", "center");
       
-      // Create icon element based on node type
       const iconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       iconSvg.setAttribute("width", `${iconSize}`);
       iconSvg.setAttribute("height", `${iconSize}`);
@@ -620,19 +590,15 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       let pathD = "";
       switch(d.element.type) {
         case 'person':
-          // Circle for person
           pathD = "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z";
           break;
         case 'event':
-          // Diamond for event
           pathD = "M12 2l10 10-10 10L2 12z";
           break;
         case 'document':
-          // Square for document
           pathD = "M4 4h16v16H4z";
           break;
         case 'concept':
-          // Star for concept
           pathD = "M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z";
           break;
         default:
@@ -649,24 +615,22 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       iconContainer.node()!.appendChild(iconSvg);
     });
       
-    // Add node labels with nice styling
     const nodeLabels = nodeContainer.append("text")
       .attr("class", "node-label")
       .attr("text-anchor", "middle")
       .attr("dy", 40)
       .attr("fill", "#FFFFFF")
-      .attr("font-weight", d => d.layer === 1 ? "500" : "400") // Lighter weight for extended layers
-      .attr("font-size", d => d.layer === 1 ? "12px" : d.layer === 2 ? "11px" : "10px") // Smaller text for extended layers
+      .attr("font-weight", d => d.layer === 1 ? "500" : "400")
+      .attr("font-size", d => d.layer === 1 ? "12px" : d.layer === 2 ? "11px" : "10px")
       .attr("text-shadow", "0 0 4px rgba(0, 0, 0, 0.5)")
       .text(d => d.element.name)
       .attr("opacity", d => {
         if (d.id === selectedElementId || d.id === hoveredNodeId) return 1;
-        if (d.layer === 1) return 0; // Hide labels for non-selected nodes by default
+        if (d.layer === 1) return 0;
         if (d.layer === 2) return 0;
         return 0;
       });
     
-    // Add a subtle ripple effect on selected node
     if (selectedElementId) {
       const selectedNode = nodeContainer.filter(d => d.id === selectedElementId);
       
@@ -678,6 +642,50 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         .attr("stroke-width", 2)
         .attr("opacity", 0.5)
         .call(ripple);
+      
+      const lockFO = selectedNode.append("foreignObject")
+        .attr("width", 24)
+        .attr("height", 24)
+        .attr("x", 15)
+        .attr("y", -35)
+        .style("pointer-events", "none");
+      
+      const lockIconContainer = lockFO.append("xhtml:div")
+        .style("width", "100%")
+        .style("height", "100%")
+        .style("display", "flex")
+        .style("justify-content", "center")
+        .style("align-items", "center");
+      
+      const lockIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      lockIconSvg.setAttribute("width", "18");
+      lockIconSvg.setAttribute("height", "18");
+      lockIconSvg.setAttribute("viewBox", "0 0 24 24");
+      
+      const lockIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      lockIconPath.setAttribute("d", "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Z");
+      lockIconPath.setAttribute("fill", "#FFFFFF");
+      lockIconPath.setAttribute("stroke", "#FFFFFF");
+      lockIconPath.setAttribute("stroke-width", "1.5");
+      
+      const lockIconPath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      lockIconPath2.setAttribute("d", "M7 11V7a5 5 0 0 1 10 0v4");
+      lockIconPath2.setAttribute("fill", "none");
+      lockIconPath2.setAttribute("stroke", "#FFFFFF");
+      lockIconPath2.setAttribute("stroke-width", "1.5");
+      
+      lockIconSvg.appendChild(lockIconPath);
+      lockIconSvg.appendChild(lockIconPath2);
+      lockIconContainer.node()!.appendChild(lockIconSvg);
+      
+      selectedNode.append("circle")
+        .attr("class", "node-locked-border")
+        .attr("r", 33)
+        .attr("fill", "none")
+        .attr("stroke", "#FFFFFF")
+        .attr("stroke-width", 2)
+        .attr("stroke-dasharray", "4,2")
+        .attr("opacity", 0.7);
       
       function ripple(selection: any) {
         selection
@@ -692,17 +700,14 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       }
     }
     
-    // Add node controls (edit, delete, connect)
     nodeContainer.each(function(d) {
       if (d.id === hoveredNodeId) {
         const node = d3.select(this);
         
-        // Add a controls group
         const controlsGroup = node.append("g")
           .attr("class", "node-controls")
           .attr("transform", "translate(0, -50)");
         
-        // Edit button
         const editButton = controlsGroup.append("circle")
           .attr("cx", -25)
           .attr("cy", 0)
@@ -715,7 +720,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
             editNode(d.id);
           });
         
-        // Edit icon
         const editFO = controlsGroup.append("foreignObject")
           .attr("width", 24)
           .attr("height", 24)
@@ -751,7 +755,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         editIconSvg.appendChild(editIconPath2);
         editIconContainer.node()!.appendChild(editIconSvg);
         
-        // Connect button
         const connectButton = controlsGroup.append("circle")
           .attr("cx", 0)
           .attr("cy", 0)
@@ -764,7 +767,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
             startConnection(d.id);
           });
         
-        // Connect icon
         const connectFO = controlsGroup.append("foreignObject")
           .attr("width", 24)
           .attr("height", 24)
@@ -794,7 +796,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         connectIconSvg.appendChild(connectIconPath);
         connectIconContainer.node()!.appendChild(connectIconSvg);
         
-        // Delete button
         const deleteButton = controlsGroup.append("circle")
           .attr("cx", 25)
           .attr("cy", 0)
@@ -807,7 +808,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
             deleteNode(d.id);
           });
         
-        // Delete icon
         const deleteFO = controlsGroup.append("foreignObject")
           .attr("width", 24)
           .attr("height", 24)
@@ -839,7 +839,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       }
     });
     
-    // Create a force simulation
     const simulation = d3.forceSimulation<MapNode, MapLink>(nodes)
       .force("link", d3.forceLink<MapNode, MapLink>(links).id(d => d.id).distance(100))
       .force("charge", d3.forceManyBody().strength(-300))
@@ -851,14 +850,11 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     
     simulationRef.current = simulation;
     
-    // Update node and link positions on each simulation tick
     function ticked() {
-      // Create a curved path for each link
       link.attr("d", function(d) {
         const sourceId = typeof d.source === 'string' ? d.source : d.source.id;
         const targetId = typeof d.target === 'string' ? d.target : d.target.id;
         
-        // Find source and target nodes
         const sourceNode = nodes.find(n => n.id === sourceId);
         const targetNode = nodes.find(n => n.id === targetId);
         
@@ -869,7 +865,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         const targetX = targetNode.x || 0;
         const targetY = targetNode.y || 0;
         
-        // Create a slight curve for all paths
         const dx = targetX - sourceX;
         const dy = targetY - sourceY;
         const dr = Math.sqrt(dx * dx + dy * dy) * 1.5;
@@ -877,10 +872,8 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         return `M${sourceX},${sourceY}A${dr},${dr} 0 0,1 ${targetX},${targetY}`;
       });
       
-      // Position nodes
       nodeContainer.attr("transform", d => `translate(${d.x || 0},${d.y || 0})`);
       
-      // Update node opacities based on the current year for animation
       if (isAnimating) {
         const nodesMap = new Map<string, MapNode>();
         nodes.forEach(node => nodesMap.set(node.id, node));
@@ -899,49 +892,47 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       }
     }
     
-    // Drag functions for nodes
     function dragstarted(event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
-      d.fx = d.x;
-      d.fy = d.y;
       
-      // Show the node's label while dragging
+      if (!d.isLocked) {
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+      
       d3.select(event.sourceEvent.currentTarget)
         .select(".node-label")
         .attr("opacity", 1);
     }
     
     function dragged(event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) {
-      d.fx = event.x;
-      d.fy = event.y;
+      if (!d.isLocked) {
+        d.fx = event.x;
+        d.fy = event.y;
+      }
     }
     
     function dragended(event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) {
       if (!event.active) simulation.alphaTarget(0);
       
-      // Reset label opacity if not selected or hovered
       if (d.id !== selectedElementId && d.id !== hoveredNodeId) {
         d3.select(event.sourceEvent.currentTarget)
           .select(".node-label")
           .attr("opacity", 0);
       }
       
-      // If we're in connection creation mode, don't unset fx and fy
-      if (!isCreatingConnection) {
+      if (!isCreatingConnection && !d.isLocked) {
         d.fx = null;
         d.fy = null;
       }
     }
     
-    // Handle node hover and click events
     nodeContainer.on("mouseover", function(event, d) {
       setHoveredNodeId(d.id);
-      // Show the label
       d3.select(this).select(".node-label").attr("opacity", 1);
     })
     .on("mouseout", function(event, d) {
       setHoveredNodeId(null);
-      // Hide the label if not selected
       if (d.id !== selectedElementId) {
         d3.select(this).select(".node-label").attr("opacity", 0);
       }
@@ -949,9 +940,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     .on("click", function(event, d) {
       event.stopPropagation();
       
-      // If we're in connection creation mode
       if (isCreatingConnection && connectionSourceId && connectionSourceId !== d.id) {
-        // Create a new link
         const newLinkId = `link_${generateUniqueId()}`;
         const newLink: MapLink = {
           id: newLinkId,
@@ -975,15 +964,31 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           description: "A new connection has been established.",
         });
         
-        // Restart simulation
         simulation.alpha(0.3).restart();
       } else {
-        // Handle node selection
+        const updatedNodes = nodes.map(node => {
+          if (node.id === d.id) {
+            return {
+              ...node,
+              isLocked: true,
+              fx: node.x,
+              fy: node.y,
+            };
+          } else {
+            return {
+              ...node,
+              isLocked: false,
+              fx: null,
+              fy: null,
+            };
+          }
+        });
+        setNodes(updatedNodes);
+        
         onElementSelect(d.element);
       }
     });
     
-    // Add glow filter
     const glowFilter = defs.append("filter")
       .attr("id", "glow");
     
@@ -1003,13 +1008,11 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       .attr("in2", "glow")
       .attr("mode", "normal");
     
-    // Cleanup on unmount
     return () => {
       if (simulation) simulation.stop();
     };
   }, [nodes, links, selectedElementId, hoveredNodeId, isAnimating, currentYear, isCreatingConnection, connectionSourceId, onElementSelect]);
   
-  // Cleanup animation on unmount
   useEffect(() => {
     return () => {
       if (animationRef.current) {
@@ -1020,7 +1023,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   
   return (
     <div className="relative w-full h-full flex flex-col bg-slate-900">
-      {/* Controls */}
       <div className="absolute top-4 right-4 flex flex-col space-y-2 z-10">
         <TooltipProvider>
           <Tooltip>
@@ -1077,7 +1079,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         </TooltipProvider>
       </div>
       
-      {/* Year indicator for animation */}
       {isAnimating && (
         <div className="absolute top-4 left-4 bg-slate-800 text-white px-3 py-1 rounded-md flex items-center">
           <Clock className="h-4 w-4 mr-2" />
@@ -1085,7 +1086,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         </div>
       )}
       
-      {/* Relationship depth control */}
       {showExtendedRelationships && (
         <div className="absolute bottom-4 right-4 bg-slate-800 text-white px-3 py-2 rounded-md">
           <label className="block text-xs text-slate-400">Relationship Depth</label>
@@ -1113,12 +1113,10 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         </div>
       )}
       
-      {/* Main SVG container */}
       <div ref={containerRef} className="flex-1 overflow-hidden">
         <svg ref={svgRef} className="w-full h-full"></svg>
       </div>
       
-      {/* Node Form Dialog */}
       <Dialog open={showNodeForm} onOpenChange={setShowNodeForm}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -1220,3 +1218,4 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
 };
 
 export default HistoryMap;
+

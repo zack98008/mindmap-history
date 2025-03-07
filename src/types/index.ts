@@ -45,6 +45,8 @@ export interface MapNode {
   opacity?: number;
   // Added for node editing
   isEditing?: boolean;
+  // Added for locked/selected state
+  isLocked?: boolean;
 }
 
 export interface MapLink {
