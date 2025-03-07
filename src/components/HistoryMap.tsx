@@ -770,9 +770,11 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           .attr("fill", "rgba(255, 255, 255, 0.9)")
           .attr("stroke", "#9b87f5")
           .attr("cursor", "pointer")
+          .attr("pointer-events", "all")
           .on("click", function(event) {
+            d3.select(this).style("fill", "rgba(230, 230, 255, 0.9)");
             event.stopPropagation();
-            editNode(d.id);
+            setTimeout(() => editNode(d.id), 0);
           });
         
         const editFO = controlsGroup.append("foreignObject")
@@ -817,9 +819,11 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           .attr("fill", "rgba(255, 255, 255, 0.9)")
           .attr("stroke", "#0EA5E9")
           .attr("cursor", "pointer")
+          .attr("pointer-events", "all")
           .on("click", function(event) {
+            d3.select(this).style("fill", "rgba(230, 230, 255, 0.9)");
             event.stopPropagation();
-            startConnection(d.id);
+            setTimeout(() => startConnection(d.id), 0);
           });
         
         const connectFO = controlsGroup.append("foreignObject")
@@ -858,9 +862,11 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           .attr("fill", "rgba(255, 255, 255, 0.9)")
           .attr("stroke", "#ef4444")
           .attr("cursor", "pointer")
+          .attr("pointer-events", "all")
           .on("click", function(event) {
+            d3.select(this).style("fill", "rgba(255, 230, 230, 0.9)");
             event.stopPropagation();
-            deleteNode(d.id);
+            setTimeout(() => deleteNode(d.id), 0);
           });
         
         const deleteFO = controlsGroup.append("foreignObject")
@@ -1090,62 +1096,83 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     nodeContainer.on("mouseover", function(event, d) {
       setHoveredNodeId(d.id);
       d3.select(this).select(".node-label").attr("opacity", 1);
+      
+      d3.select(this).selectAll(".node-controls *")
+        .style("pointer-events", "all");
+        
+      d3.select(this).select(".node-lock-toggle")
+        .style("opacity", 1);
     })
     .on("mouseout", function(event, d) {
-      setHoveredNodeId(null);
-      if (d.id !== selectedElementId) {
-        d3.select(this).select(".node-label").attr("opacity", 0);
+      const mouseOverControls = d3.select(document.elementFromPoint(event.clientX, event.clientY))
+        .classed("node-controls") || 
+        d3.select(document.elementFromPoint(event.clientX, event.clientY).parentNode)
+        .classed("node-controls");
+      
+      if (!mouseOverControls) {
+        setHoveredNodeId(null);
+        if (d.id !== selectedElementId) {
+          d3.select(this).select(".node-label").attr("opacity", 0);
+        }
+        d3.select(this).select(".node-lock-toggle")
+          .style("opacity", 0);
       }
     })
     .on("click", function(event, d) {
-      event.stopPropagation();
+      const target = event.target as SVGElement;
+      const isControl = d3.select(target).classed("node-controls") || 
+                        d3.select(target.parentNode as SVGElement).classed("node-controls");
       
-      if (isCreatingConnection && connectionSourceId && connectionSourceId !== d.id) {
-        const newLinkId = `link_${generateUniqueId()}`;
-        const newLink: MapLink = {
-          id: newLinkId,
-          source: connectionSourceId,
-          target: d.id,
-          relationship: {
+      if (!isControl) {
+        event.stopPropagation();
+        
+        if (isCreatingConnection && connectionSourceId && connectionSourceId !== d.id) {
+          const newLinkId = `link_${generateUniqueId()}`;
+          const newLink: MapLink = {
             id: newLinkId,
-            sourceId: connectionSourceId,
-            targetId: d.id,
-            description: "Connected to",
-            type: "custom"
-          }
-        };
-        
-        setLinks([...links, newLink]);
-        setIsCreatingConnection(false);
-        setConnectionSourceId(null);
-        
-        toast({
-          title: "Connection Created",
-          description: "A new connection has been established.",
-        });
-        
-        simulation.alpha(0.3).restart();
-      } else {
-        const updatedNodes = nodes.map(node => {
-          if (node.id === d.id) {
-            return {
-              ...node,
-              isLocked: true,
-              fx: node.x,
-              fy: node.y,
-            };
-          } else {
-            return {
-              ...node,
-              isLocked: false,
-              fx: null,
-              fy: null,
-            };
-          }
-        });
-        setNodes(updatedNodes);
-        
-        onElementSelect(d.element);
+            source: connectionSourceId,
+            target: d.id,
+            relationship: {
+              id: newLinkId,
+              sourceId: connectionSourceId,
+              targetId: d.id,
+              description: "Connected to",
+              type: "custom"
+            }
+          };
+          
+          setLinks([...links, newLink]);
+          setIsCreatingConnection(false);
+          setConnectionSourceId(null);
+          
+          toast({
+            title: "Connection Created",
+            description: "A new connection has been established.",
+          });
+          
+          simulation.alpha(0.3).restart();
+        } else {
+          const updatedNodes = nodes.map(node => {
+            if (node.id === d.id) {
+              return {
+                ...node,
+                isLocked: true,
+                fx: node.x,
+                fy: node.y,
+              };
+            } else {
+              return {
+                ...node,
+                isLocked: false,
+                fx: null,
+                fy: null,
+              };
+            }
+          });
+          setNodes(updatedNodes);
+          
+          onElementSelect(d.element);
+        }
       }
     });
     
@@ -1377,3 +1404,4 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
 };
 
 export default HistoryMap;
+
