@@ -1,571 +1,484 @@
+import { supabase } from '@/integrations/supabase/client';
+import { HistoricalElement, Relationship, MapNode, MapLink } from '@/types';
 
-import { supabase } from "@/integrations/supabase/client";
-import { 
-  HistoricalElement, 
-  Relationship, 
-  MapNode, 
-  MapLink,
-  UserProfile
-} from '@/types';
-import { toast } from 'sonner';
+// Generate a unique ID for elements
+const generateUniqueId = () => {
+  return 'elem_' + Math.random().toString(36).substr(2, 9);
+};
 
-// HistoricalElements CRUD
+// Fetch all historical elements
 export const fetchHistoricalElements = async (): Promise<HistoricalElement[]> => {
   try {
     const { data, error } = await supabase
       .from('historical_elements')
       .select('*');
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching historical elements:', error);
+      throw error;
+    }
     
-    return data.map(item => ({
-      id: item.id,
-      name: item.name,
-      type: item.type as HistoricalElement['type'],
-      date: item.date,
-      description: item.description,
-      tags: item.tags,
-      imageUrl: item.image_url,
-      year: item.year
-    }));
-  } catch (error: any) {
-    console.error('Error fetching historical elements:', error);
-    toast.error('Failed to load historical elements');
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchHistoricalElements:', error);
     return [];
   }
 };
 
-export const createHistoricalElement = async (element: Omit<HistoricalElement, 'id'>): Promise<HistoricalElement | null> => {
+// Fetch relationships between elements
+export const fetchRelationships = async (): Promise<Relationship[]> => {
   try {
     const { data, error } = await supabase
+      .from('relationships')
+      .select('*');
+    
+    if (error) {
+      console.error('Error fetching relationships:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchRelationships:', error);
+    return [];
+  }
+};
+
+// Create a new historical element
+export const createHistoricalElement = async (elementData: Omit<HistoricalElement, 'id'>): Promise<HistoricalElement | null> => {
+  try {
+    const newElement = {
+      ...elementData,
+      id: generateUniqueId()
+    };
+    
+    const { data, error } = await supabase
       .from('historical_elements')
-      .insert({
-        name: element.name,
-        type: element.type,
-        date: element.date,
-        description: element.description,
-        tags: element.tags,
-        image_url: element.imageUrl,
-        year: element.year
-      })
+      .insert(newElement)
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating historical element:', error);
+      throw error;
+    }
     
-    return {
-      id: data.id,
-      name: data.name,
-      type: data.type as HistoricalElement['type'],
-      date: data.date,
-      description: data.description,
-      tags: data.tags,
-      imageUrl: data.image_url,
-      year: data.year
-    };
-  } catch (error: any) {
-    console.error('Error creating historical element:', error);
-    toast.error('Failed to create element');
+    return data;
+  } catch (error) {
+    console.error('Error in createHistoricalElement:', error);
     return null;
   }
 };
 
+// Update an existing historical element
 export const updateHistoricalElement = async (id: string, updates: Partial<HistoricalElement>): Promise<HistoricalElement | null> => {
   try {
     const { data, error } = await supabase
       .from('historical_elements')
-      .update({
-        name: updates.name,
-        type: updates.type,
-        date: updates.date,
-        description: updates.description,
-        tags: updates.tags,
-        image_url: updates.imageUrl,
-        year: updates.year,
-        updated_at: new Date().toISOString()
-      })
+      .update(updates)
       .eq('id', id)
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating historical element:', error);
+      throw error;
+    }
     
-    return {
-      id: data.id,
-      name: data.name,
-      type: data.type as HistoricalElement['type'],
-      date: data.date,
-      description: data.description,
-      tags: data.tags,
-      imageUrl: data.image_url,
-      year: data.year
-    };
-  } catch (error: any) {
-    console.error('Error updating historical element:', error);
-    toast.error('Failed to update element');
+    return data;
+  } catch (error) {
+    console.error('Error in updateHistoricalElement:', error);
     return null;
   }
 };
 
+// Delete a historical element
 export const deleteHistoricalElement = async (id: string): Promise<boolean> => {
   try {
+    // First delete any relationships involving this element
+    await supabase
+      .from('relationships')
+      .delete()
+      .or(`sourceId.eq.${id},targetId.eq.${id}`);
+    
+    // Then delete the element itself
     const { error } = await supabase
       .from('historical_elements')
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error deleting historical element:', error);
+      throw error;
+    }
     
     return true;
-  } catch (error: any) {
-    console.error('Error deleting historical element:', error);
-    toast.error('Failed to delete element');
+  } catch (error) {
+    console.error('Error in deleteHistoricalElement:', error);
     return false;
   }
 };
 
-// Relationships CRUD
-export const fetchRelationships = async (): Promise<Relationship[]> => {
+// Create a relationship between elements
+export const createRelationship = async (relationshipData: Omit<Relationship, 'id'>): Promise<Relationship | null> => {
   try {
-    const { data, error } = await supabase
-      .from('element_relationships')
-      .select('*');
+    const newRelationship = {
+      ...relationshipData,
+      id: generateUniqueId()
+    };
     
-    if (error) throw error;
-    
-    return data.map(item => ({
-      id: item.id,
-      sourceId: item.source_id,
-      targetId: item.target_id,
-      description: item.description || '',
-      type: item.type as Relationship['type']
-    }));
-  } catch (error: any) {
-    console.error('Error fetching relationships:', error);
-    toast.error('Failed to load relationships');
-    return [];
-  }
-};
-
-export const createRelationship = async (relationship: Omit<Relationship, 'id'>): Promise<Relationship | null> => {
-  try {
     const { data, error } = await supabase
-      .from('element_relationships')
-      .insert({
-        source_id: relationship.sourceId,
-        target_id: relationship.targetId,
-        description: relationship.description,
-        type: relationship.type
-      })
+      .from('relationships')
+      .insert(newRelationship)
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating relationship:', error);
+      throw error;
+    }
     
-    return {
-      id: data.id,
-      sourceId: data.source_id,
-      targetId: data.target_id,
-      description: data.description || '',
-      type: data.type as Relationship['type']
-    };
-  } catch (error: any) {
-    console.error('Error creating relationship:', error);
-    toast.error('Failed to create relationship');
+    return data;
+  } catch (error) {
+    console.error('Error in createRelationship:', error);
     return null;
   }
 };
 
+// Update an existing relationship
 export const updateRelationship = async (id: string, updates: Partial<Relationship>): Promise<Relationship | null> => {
   try {
     const { data, error } = await supabase
-      .from('element_relationships')
-      .update({
-        source_id: updates.sourceId,
-        target_id: updates.targetId,
-        description: updates.description,
-        type: updates.type,
-        updated_at: new Date().toISOString()
-      })
+      .from('relationships')
+      .update(updates)
       .eq('id', id)
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating relationship:', error);
+      throw error;
+    }
     
-    return {
-      id: data.id,
-      sourceId: data.source_id,
-      targetId: data.target_id,
-      description: data.description || '',
-      type: data.type as Relationship['type']
-    };
-  } catch (error: any) {
-    console.error('Error updating relationship:', error);
-    toast.error('Failed to update relationship');
+    return data;
+  } catch (error) {
+    console.error('Error in updateRelationship:', error);
     return null;
   }
 };
 
+// Delete a relationship
 export const deleteRelationship = async (id: string): Promise<boolean> => {
   try {
     const { error } = await supabase
-      .from('element_relationships')
+      .from('relationships')
       .delete()
       .eq('id', id);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error deleting relationship:', error);
+      throw error;
+    }
     
     return true;
-  } catch (error: any) {
-    console.error('Error deleting relationship:', error);
-    toast.error('Failed to delete relationship');
+  } catch (error) {
+    console.error('Error in deleteRelationship:', error);
     return false;
   }
 };
 
-// User Maps CRUD
-export const fetchUserMaps = async (): Promise<{ id: string, name: string, description: string }[]> => {
+// Fetch user maps
+export const fetchUserMaps = async (): Promise<any[]> => {
   try {
-    // Get the current user
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('maps')
+      .select('*');
     
-    if (!user) {
-      console.error('No authenticated user found');
-      toast.error('You must be logged in to view maps');
-      return [];
+    if (error) {
+      console.error('Error fetching maps:', error);
+      throw error;
     }
     
-    const { data, error } = await supabase
-      .from('user_maps')
-      .select('*')
-      .eq('user_id', user.id);
-    
-    if (error) throw error;
-    
-    return data.map(item => ({
-      id: item.id,
-      name: item.name,
-      description: item.description || ''
-    }));
-  } catch (error: any) {
-    console.error('Error fetching user maps:', error);
-    toast.error('Failed to load maps');
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchUserMaps:', error);
     return [];
   }
 };
 
-export const createUserMap = async (name: string, description: string = ''): Promise<{ id: string, name: string, description: string } | null> => {
+// Create a new map
+export const createUserMap = async (name: string, description: string): Promise<any | null> => {
   try {
-    // Get the current user
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      console.error('No authenticated user found');
-      toast.error('You must be logged in to create a map');
-      return null;
-    }
+    const newMap = {
+      id: generateUniqueId(),
+      name,
+      description,
+      created_at: new Date().toISOString()
+    };
     
     const { data, error } = await supabase
-      .from('user_maps')
-      .insert({
-        name,
-        description,
-        user_id: user.id  // Explicitly set the user_id
-      })
+      .from('maps')
+      .insert(newMap)
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating map:', error);
+      throw error;
+    }
     
-    return {
-      id: data.id,
-      name: data.name,
-      description: data.description || ''
-    };
-  } catch (error: any) {
-    console.error('Error creating user map:', error);
-    toast.error('Failed to create map');
+    return data;
+  } catch (error) {
+    console.error('Error in createUserMap:', error);
     return null;
   }
 };
 
-export const updateUserMap = async (id: string, name: string, description: string = ''): Promise<{ id: string, name: string, description: string } | null> => {
+// Update an existing map
+export const updateUserMap = async (id: string, name: string, description: string): Promise<any | null> => {
   try {
-    // Get the current user
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      console.error('No authenticated user found');
-      toast.error('You must be logged in to update a map');
-      return null;
-    }
-    
     const { data, error } = await supabase
-      .from('user_maps')
-      .update({
-        name,
-        description,
-        updated_at: new Date().toISOString()
-      })
+      .from('maps')
+      .update({ name, description, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .eq('user_id', user.id)  // Ensure the user can only update their own maps
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating map:', error);
+      throw error;
+    }
     
-    return {
-      id: data.id,
-      name: data.name,
-      description: data.description || ''
-    };
-  } catch (error: any) {
-    console.error('Error updating user map:', error);
-    toast.error('Failed to update map');
+    return data;
+  } catch (error) {
+    console.error('Error in updateUserMap:', error);
     return null;
   }
 };
 
+// Delete a map
 export const deleteUserMap = async (id: string): Promise<boolean> => {
   try {
-    // Get the current user
-    const { data: { user } } = await supabase.auth.getUser();
+    // First delete any map nodes and links
+    await supabase.from('map_nodes').delete().eq('map_id', id);
+    await supabase.from('map_links').delete().eq('map_id', id);
     
-    if (!user) {
-      console.error('No authenticated user found');
-      toast.error('You must be logged in to delete a map');
-      return false;
+    // Then delete the map itself
+    const { error } = await supabase
+      .from('maps')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting map:', error);
+      throw error;
     }
     
-    const { error } = await supabase
-      .from('user_maps')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);  // Ensure the user can only delete their own maps
-    
-    if (error) throw error;
-    
     return true;
-  } catch (error: any) {
-    console.error('Error deleting user map:', error);
-    toast.error('Failed to delete map');
+  } catch (error) {
+    console.error('Error in deleteUserMap:', error);
     return false;
   }
 };
 
-// Map Elements operations
-export const saveMapPositions = async (mapId: string, nodes: MapNode[]): Promise<boolean> => {
-  try {
-    // First, delete existing map elements to avoid duplicates
-    const { error: deleteError } = await supabase
-      .from('map_elements')
-      .delete()
-      .eq('map_id', mapId);
-    
-    if (deleteError) throw deleteError;
-    
-    // Insert all nodes with their positions
-    const elementsToInsert = nodes.map(node => ({
-      map_id: mapId,
-      element_id: node.element.id,
-      x_position: node.x,
-      y_position: node.y,
-      layer: node.layer || 1
-    }));
-    
-    const { error } = await supabase
-      .from('map_elements')
-      .insert(elementsToInsert);
-    
-    if (error) throw error;
-    
-    return true;
-  } catch (error: any) {
-    console.error('Error saving map positions:', error);
-    toast.error('Failed to save map positions');
-    return false;
-  }
-};
-
+// Fetch nodes for a specific map
 export const fetchMapNodes = async (mapId: string): Promise<MapNode[]> => {
   try {
-    const { data: mapElements, error: elementsError } = await supabase
-      .from('map_elements')
+    const { data, error } = await supabase
+      .from('map_nodes')
       .select(`
-        x_position,
-        y_position,
-        layer,
-        element_id,
-        historical_elements (*)
+        *,
+        element:historical_elements(*)
       `)
       .eq('map_id', mapId);
     
-    if (elementsError) throw elementsError;
+    if (error) {
+      console.error('Error fetching map nodes:', error);
+      throw error;
+    }
     
-    return mapElements.map(item => {
-      const element = item.historical_elements;
-      
-      return {
-        id: element.id,
-        x: item.x_position,
-        y: item.y_position,
-        layer: item.layer || 1,
-        element: {
-          id: element.id,
-          name: element.name,
-          type: element.type as HistoricalElement['type'],
-          date: element.date,
-          description: element.description,
-          tags: element.tags,
-          imageUrl: element.image_url,
-          year: element.year
-        }
-      };
-    });
-  } catch (error: any) {
-    console.error('Error fetching map nodes:', error);
-    toast.error('Failed to load map nodes');
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchMapNodes:', error);
     return [];
   }
 };
 
+// Fetch links for a specific map
 export const fetchMapLinks = async (mapId: string): Promise<MapLink[]> => {
   try {
-    const { data: mapRelationships, error: relationshipsError } = await supabase
-      .from('map_relationships')
+    const { data, error } = await supabase
+      .from('map_links')
       .select(`
-        relationship_id,
-        element_relationships (*)
+        *,
+        relationship:relationships(*)
       `)
       .eq('map_id', mapId);
     
-    if (relationshipsError) throw relationshipsError;
+    if (error) {
+      console.error('Error fetching map links:', error);
+      throw error;
+    }
     
-    return mapRelationships.map(item => {
-      const relationship = item.element_relationships;
-      
-      return {
-        id: relationship.id,
-        source: relationship.source_id,
-        target: relationship.target_id,
-        relationship: {
-          id: relationship.id,
-          sourceId: relationship.source_id,
-          targetId: relationship.target_id,
-          description: relationship.description || '',
-          type: relationship.type as Relationship['type']
-        }
-      };
-    });
-  } catch (error: any) {
-    console.error('Error fetching map links:', error);
-    toast.error('Failed to load map links');
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchMapLinks:', error);
     return [];
   }
 };
 
-export const saveMapLinks = async (mapId: string, links: MapLink[]): Promise<boolean> => {
+// Save map node positions
+export const saveMapPositions = async (mapId: string, nodes: MapNode[]): Promise<boolean> => {
   try {
-    // First, delete existing map relationships to avoid duplicates
-    const { error: deleteError } = await supabase
-      .from('map_relationships')
+    // First delete existing nodes for this map
+    await supabase
+      .from('map_nodes')
       .delete()
       .eq('map_id', mapId);
     
-    if (deleteError) throw deleteError;
-    
-    // Insert all relationships
-    const relationshipsToInsert = links.map(link => ({
+    // Then insert the new nodes
+    const nodesToInsert = nodes.map(node => ({
+      id: generateUniqueId(),
       map_id: mapId,
-      relationship_id: typeof link.relationship === 'object' ? link.relationship.id : link.relationship
+      element_id: node.element.id,
+      x: node.x,
+      y: node.y,
+      is_locked: node.isLocked || false,
+      layer: node.layer || 0,
+      opacity: node.opacity || 1
     }));
     
     const { error } = await supabase
-      .from('map_relationships')
-      .insert(relationshipsToInsert);
+      .from('map_nodes')
+      .insert(nodesToInsert);
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error saving map positions:', error);
+      throw error;
+    }
     
     return true;
-  } catch (error: any) {
-    console.error('Error saving map links:', error);
-    toast.error('Failed to save map links');
+  } catch (error) {
+    console.error('Error in saveMapPositions:', error);
     return false;
   }
 };
 
-// Profile management
-export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+// Save map links
+export const saveMapLinks = async (mapId: string, links: MapLink[]): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    // First delete existing links for this map
+    await supabase
+      .from('map_links')
+      .delete()
+      .eq('map_id', mapId);
     
-    if (error) throw error;
+    // Then insert the new links
+    const linksToInsert = links.map(link => {
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+      
+      return {
+        id: generateUniqueId(),
+        map_id: mapId,
+        relationship_id: link.relationship.id,
+        source_id: sourceId,
+        target_id: targetId,
+        layer: link.layer || 0,
+        opacity: link.opacity || 1
+      };
+    });
     
-    return data as UserProfile;
-  } catch (error: any) {
-    console.error('Error fetching user profile:', error);
-    return null;
+    if (linksToInsert.length > 0) {
+      const { error } = await supabase
+        .from('map_links')
+        .insert(linksToInsert);
+      
+      if (error) {
+        console.error('Error saving map links:', error);
+        throw error;
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in saveMapLinks:', error);
+    return false;
   }
 };
 
-export const updateUserProfile = async (
-  userId: string, 
-  updates: { full_name?: string; avatar_url?: string }
-): Promise<UserProfile | null> => {
+// Save a generated map
+export const saveGeneratedMap = async (mapData: any): Promise<string | null> => {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
+    // Create the map entry
+    const { data: mapEntry, error: mapError } = await supabase
+      .from('maps')
+      .insert({
+        id: generateUniqueId(),
+        name: mapData.name,
+        description: mapData.description || '',
+        type: mapData.type,
+        config: mapData.mapConfig,
+        created_at: new Date().toISOString()
       })
-      .eq('id', userId)
       .select()
       .single();
     
-    if (error) throw error;
+    if (mapError) {
+      console.error('Error creating generated map:', mapError);
+      throw mapError;
+    }
     
-    toast.success('Profile updated successfully');
-    return data as UserProfile;
-  } catch (error: any) {
-    console.error('Error updating user profile:', error);
-    toast.error('Failed to update profile');
+    const mapId = mapEntry.id;
+    
+    // Process and save nodes
+    if (mapData.nodes && mapData.nodes.length > 0) {
+      const nodesToInsert = mapData.nodes.map((node: any) => ({
+        id: generateUniqueId(),
+        map_id: mapId,
+        element_id: node.id,
+        x: node.x,
+        y: node.y,
+        is_locked: false,
+        layer: 0,
+        opacity: 1
+      }));
+      
+      const { error: nodesError } = await supabase
+        .from('map_nodes')
+        .insert(nodesToInsert);
+      
+      if (nodesError) {
+        console.error('Error saving generated map nodes:', nodesError);
+        throw nodesError;
+      }
+    }
+    
+    // Process and save links
+    if (mapData.links && mapData.links.length > 0) {
+      const linksToInsert = mapData.links.map((link: any) => ({
+        id: generateUniqueId(),
+        map_id: mapId,
+        relationship_id: link.id,
+        source_id: link.source,
+        target_id: link.target,
+        layer: 0,
+        opacity: 1
+      }));
+      
+      const { error: linksError } = await supabase
+        .from('map_links')
+        .insert(linksToInsert);
+      
+      if (linksError) {
+        console.error('Error saving generated map links:', linksError);
+        throw linksError;
+      }
+    }
+    
+    return mapId;
+  } catch (error) {
+    console.error('Error in saveGeneratedMap:', error);
     return null;
-  }
-};
-
-// Session management
-export const getCurrentUser = async () => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
-  } catch (error) {
-    console.error('Error getting current user:', error);
-    return null;
-  }
-};
-
-export const isAuthenticated = async (): Promise<boolean> => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    return !!session;
-  } catch (error) {
-    console.error('Error checking authentication:', error);
-    return false;
-  }
-};
-
-export const logout = async (): Promise<void> => {
-  try {
-    await supabase.auth.signOut();
-    toast.success('Logged out successfully');
-  } catch (error) {
-    console.error('Error during logout:', error);
-    toast.error('Failed to log out');
   }
 };

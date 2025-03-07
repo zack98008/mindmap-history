@@ -1,55 +1,27 @@
 
 import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   Network, 
   Clock, 
   FileText, 
-  BrainCircuit, 
-  User, 
-  LogOut,
+  BrainCircuit,
   Map,
   Home,
-  Settings
+  Globe
 } from 'lucide-react';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { UserProfile } from '@/types';
 
 interface NavBarProps {
   activeView?: 'map' | 'timeline';
   onViewChange?: (view: 'map' | 'timeline') => void;
-  userProfile?: UserProfile | null;
 }
 
 const NavBar: React.FC<NavBarProps> = ({ 
   activeView = 'map', 
-  onViewChange = () => {},
-  userProfile = null
+  onViewChange = () => {}
 }) => {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
-  
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-  
-  const userInitials = userProfile?.full_name 
-    ? userProfile.full_name.substring(0, 2).toUpperCase()
-    : user?.email 
-      ? user.email.substring(0, 2).toUpperCase() 
-      : 'U';
   
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -113,6 +85,17 @@ const NavBar: React.FC<NavBarProps> = ({
         </Button>
         
         <Button 
+          variant={isActive('/generate') ? 'default' : 'outline'} 
+          size="sm"
+          asChild
+        >
+          <Link to="/generate">
+            <Globe className="h-4 w-4 mr-2" />
+            Generate Maps
+          </Link>
+        </Button>
+        
+        <Button 
           variant={isActive('/templates') ? 'default' : 'outline'} 
           size="sm"
           asChild
@@ -133,48 +116,6 @@ const NavBar: React.FC<NavBarProps> = ({
             Memorization
           </Link>
         </Button>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Avatar>
-                {userProfile?.avatar_url ? (
-                  <AvatarImage src={userProfile.avatar_url} alt="Profile" />
-                ) : null}
-                <AvatarFallback className="bg-slate-700 text-white">
-                  {userInitials}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>
-              {userProfile?.full_name || user?.email || 'My Account'}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/')}>
-              <Home className="h-4 w-4 mr-2" />
-              Dashboard
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/maps')}>
-              <Map className="h-4 w-4 mr-2" />
-              My Maps
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/templates')}>
-              <FileText className="h-4 w-4 mr-2" />
-              Templates
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/memorization')}>
-              <BrainCircuit className="h-4 w-4 mr-2" />
-              Memorization
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
       
       {showViewToggle && (
