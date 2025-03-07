@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import NavBar from '@/components/NavBar';
+import Layout from '@/components/Layout';
 import SearchBar from '@/components/SearchBar';
 import HistoryMap from '@/components/HistoryMap';
 import TimelineView from '@/components/TimelineView';
@@ -89,9 +88,7 @@ const Index = () => {
   }
   
   return (
-    <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
-      <NavBar activeView={activeView} onViewChange={setActiveView} />
-      
+    <Layout activeView={activeView} onViewChange={setActiveView}>
       <div className="mb-4 flex justify-between items-center">
         <Button 
           onClick={() => setShowAnalyzer(!showAnalyzer)} 
@@ -219,7 +216,7 @@ const Index = () => {
           )}
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

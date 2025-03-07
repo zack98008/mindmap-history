@@ -9,6 +9,7 @@ import QuizSession from '@/components/memorization/QuizSession';
 import ConnectionGame from '@/components/memorization/ConnectionGame';
 import { toast } from 'sonner';
 import { Book, BrainCircuit, GraduationCap } from 'lucide-react';
+import NavBar from '@/components/NavBar';
 
 const Memorization = () => {
   const navigate = useNavigate();
@@ -23,14 +24,13 @@ const Memorization = () => {
 
   return (
     <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
+      <NavBar />
+      
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <BrainCircuit className="h-8 w-8 mr-3 text-chronoPurple" />
           <h1 className="text-2xl font-bold">ChronoMind Memorization</h1>
         </div>
-        <Button variant="outline" onClick={() => navigate('/')}>
-          Return to Dashboard
-        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
