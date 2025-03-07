@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { generateMapNodes, generateMapLinks, getElementById, getTimelineItems, generateExtendedMapData } from '@/utils/dummyData';
 import { HistoricalElement, MapNode, MapLink, TimelineItem, HistoricalElementType, NodeFormData } from '@/types';
@@ -753,3 +754,469 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         // Connect button
         const connectButton = controlsGroup.append("circle")
           .attr("cx", 0)
+          .attr("cy", 0)
+          .attr("r", 12)
+          .attr("fill", "rgba(255, 255, 255, 0.9)")
+          .attr("stroke", "#0EA5E9")
+          .attr("cursor", "pointer")
+          .on("click", function(event) {
+            event.stopPropagation();
+            startConnection(d.id);
+          });
+        
+        // Connect icon
+        const connectFO = controlsGroup.append("foreignObject")
+          .attr("width", 24)
+          .attr("height", 24)
+          .attr("x", -12)
+          .attr("y", -12)
+          .style("pointer-events", "none");
+        
+        const connectIconContainer = connectFO.append("xhtml:div")
+          .style("width", "100%")
+          .style("height", "100%")
+          .style("display", "flex")
+          .style("justify-content", "center")
+          .style("align-items", "center");
+        
+        const connectIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        connectIconSvg.setAttribute("width", "16");
+        connectIconSvg.setAttribute("height", "16");
+        connectIconSvg.setAttribute("viewBox", "0 0 24 24");
+        
+        const connectIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        connectIconPath.setAttribute("d", "M8 12h8M12 8v8");
+        connectIconPath.setAttribute("fill", "none");
+        connectIconPath.setAttribute("stroke", "#0EA5E9");
+        connectIconPath.setAttribute("stroke-width", "2");
+        connectIconPath.setAttribute("stroke-linecap", "round");
+        
+        connectIconSvg.appendChild(connectIconPath);
+        connectIconContainer.node()!.appendChild(connectIconSvg);
+        
+        // Delete button
+        const deleteButton = controlsGroup.append("circle")
+          .attr("cx", 25)
+          .attr("cy", 0)
+          .attr("r", 12)
+          .attr("fill", "rgba(255, 255, 255, 0.9)")
+          .attr("stroke", "#ef4444")
+          .attr("cursor", "pointer")
+          .on("click", function(event) {
+            event.stopPropagation();
+            deleteNode(d.id);
+          });
+        
+        // Delete icon
+        const deleteFO = controlsGroup.append("foreignObject")
+          .attr("width", 24)
+          .attr("height", 24)
+          .attr("x", 13)
+          .attr("y", -12)
+          .style("pointer-events", "none");
+        
+        const deleteIconContainer = deleteFO.append("xhtml:div")
+          .style("width", "100%")
+          .style("height", "100%")
+          .style("display", "flex")
+          .style("justify-content", "center")
+          .style("align-items", "center");
+        
+        const deleteIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        deleteIconSvg.setAttribute("width", "16");
+        deleteIconSvg.setAttribute("height", "16");
+        deleteIconSvg.setAttribute("viewBox", "0 0 24 24");
+        
+        const deleteIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        deleteIconPath.setAttribute("d", "M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6");
+        deleteIconPath.setAttribute("fill", "none");
+        deleteIconPath.setAttribute("stroke", "#ef4444");
+        deleteIconPath.setAttribute("stroke-width", "2");
+        deleteIconPath.setAttribute("stroke-linecap", "round");
+        
+        deleteIconSvg.appendChild(deleteIconPath);
+        deleteIconContainer.node()!.appendChild(deleteIconSvg);
+      }
+    });
+    
+    // Create a force simulation
+    const simulation = d3.forceSimulation<MapNode, MapLink>(nodes)
+      .force("link", d3.forceLink<MapNode, MapLink>(links).id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collide", d3.forceCollide().radius(50).strength(0.2))
+      .force("x", d3.forceX(width / 2).strength(0.05))
+      .force("y", d3.forceY(height / 2).strength(0.05))
+      .on("tick", ticked);
+    
+    simulationRef.current = simulation;
+    
+    // Update node and link positions on each simulation tick
+    function ticked() {
+      // Create a curved path for each link
+      link.attr("d", function(d) {
+        const sourceId = typeof d.source === 'string' ? d.source : d.source.id;
+        const targetId = typeof d.target === 'string' ? d.target : d.target.id;
+        
+        // Find source and target nodes
+        const sourceNode = nodes.find(n => n.id === sourceId);
+        const targetNode = nodes.find(n => n.id === targetId);
+        
+        if (!sourceNode || !targetNode) return "";
+        
+        const sourceX = sourceNode.x || 0;
+        const sourceY = sourceNode.y || 0;
+        const targetX = targetNode.x || 0;
+        const targetY = targetNode.y || 0;
+        
+        // Create a slight curve for all paths
+        const dx = targetX - sourceX;
+        const dy = targetY - sourceY;
+        const dr = Math.sqrt(dx * dx + dy * dy) * 1.5;
+        
+        return `M${sourceX},${sourceY}A${dr},${dr} 0 0,1 ${targetX},${targetY}`;
+      });
+      
+      // Position nodes
+      nodeContainer.attr("transform", d => `translate(${d.x || 0},${d.y || 0})`);
+      
+      // Update node opacities based on the current year for animation
+      if (isAnimating) {
+        const nodesMap = new Map<string, MapNode>();
+        nodes.forEach(node => nodesMap.set(node.id, node));
+        
+        nodeContainer.attr("opacity", d => {
+          const baseOpacity = d.opacity !== undefined ? d.opacity : 1;
+          const visibilityOpacity = calculateNodeVisibility(d, currentYear);
+          return baseOpacity * visibilityOpacity;
+        });
+        
+        link.style("opacity", d => {
+          const baseOpacity = d.opacity !== undefined ? d.opacity : 1;
+          const visibilityOpacity = calculateLinkVisibility(d, currentYear, nodesMap);
+          return baseOpacity * visibilityOpacity;
+        });
+      }
+    }
+    
+    // Drag functions for nodes
+    function dragstarted(event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+      
+      // Show the node's label while dragging
+      d3.select(event.sourceEvent.currentTarget)
+        .select(".node-label")
+        .attr("opacity", 1);
+    }
+    
+    function dragged(event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+    
+    function dragended(event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) {
+      if (!event.active) simulation.alphaTarget(0);
+      
+      // Reset label opacity if not selected or hovered
+      if (d.id !== selectedElementId && d.id !== hoveredNodeId) {
+        d3.select(event.sourceEvent.currentTarget)
+          .select(".node-label")
+          .attr("opacity", 0);
+      }
+      
+      // If we're in connection creation mode, don't unset fx and fy
+      if (!isCreatingConnection) {
+        d.fx = null;
+        d.fy = null;
+      }
+    }
+    
+    // Handle node hover and click events
+    nodeContainer.on("mouseover", function(event, d) {
+      setHoveredNodeId(d.id);
+      // Show the label
+      d3.select(this).select(".node-label").attr("opacity", 1);
+    })
+    .on("mouseout", function(event, d) {
+      setHoveredNodeId(null);
+      // Hide the label if not selected
+      if (d.id !== selectedElementId) {
+        d3.select(this).select(".node-label").attr("opacity", 0);
+      }
+    })
+    .on("click", function(event, d) {
+      event.stopPropagation();
+      
+      // If we're in connection creation mode
+      if (isCreatingConnection && connectionSourceId && connectionSourceId !== d.id) {
+        // Create a new link
+        const newLinkId = `link_${generateUniqueId()}`;
+        const newLink: MapLink = {
+          id: newLinkId,
+          source: connectionSourceId,
+          target: d.id,
+          relationship: {
+            id: newLinkId,
+            sourceId: connectionSourceId,
+            targetId: d.id,
+            description: "Connected to",
+            type: "custom"
+          }
+        };
+        
+        setLinks([...links, newLink]);
+        setIsCreatingConnection(false);
+        setConnectionSourceId(null);
+        
+        toast({
+          title: "Connection Created",
+          description: "A new connection has been established.",
+        });
+        
+        // Restart simulation
+        simulation.alpha(0.3).restart();
+      } else {
+        // Handle node selection
+        onElementSelect(d.element);
+      }
+    });
+    
+    // Add glow filter
+    const glowFilter = defs.append("filter")
+      .attr("id", "glow");
+    
+    glowFilter.append("feGaussianBlur")
+      .attr("in", "SourceGraphic")
+      .attr("stdDeviation", "5")
+      .attr("result", "blur");
+    
+    glowFilter.append("feColorMatrix")
+      .attr("in", "blur")
+      .attr("type", "matrix")
+      .attr("values", "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 18 -7")
+      .attr("result", "glow");
+    
+    glowFilter.append("feBlend")
+      .attr("in", "SourceGraphic")
+      .attr("in2", "glow")
+      .attr("mode", "normal");
+    
+    // Cleanup on unmount
+    return () => {
+      if (simulation) simulation.stop();
+    };
+  }, [nodes, links, selectedElementId, hoveredNodeId, isAnimating, currentYear, isCreatingConnection, connectionSourceId, onElementSelect]);
+  
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
+  
+  return (
+    <div className="relative w-full h-full flex flex-col bg-slate-900">
+      {/* Controls */}
+      <div className="absolute top-4 right-4 flex flex-col space-y-2 z-10">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="bg-slate-800 text-white hover:bg-slate-700 border-slate-600"
+                onClick={() => setIsCreatingNode(true)}
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>Add new node</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="bg-slate-800 text-white hover:bg-slate-700 border-slate-600"
+                onClick={toggleAnimation}
+              >
+                {isAnimating ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>{isAnimating ? "Pause" : "Play"} timeline animation</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant={showExtendedRelationships ? "default" : "outline"}
+                size="icon" 
+                className={`${showExtendedRelationships ? "bg-indigo-600" : "bg-slate-800"} text-white hover:bg-indigo-700 border-slate-600`}
+                onClick={() => setShowExtendedRelationships(!showExtendedRelationships)}
+              >
+                <Layers className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>{showExtendedRelationships ? "Hide" : "Show"} extended relationships</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      
+      {/* Year indicator for animation */}
+      {isAnimating && (
+        <div className="absolute top-4 left-4 bg-slate-800 text-white px-3 py-1 rounded-md flex items-center">
+          <Clock className="h-4 w-4 mr-2" />
+          <span className="font-mono">{currentYear}</span>
+        </div>
+      )}
+      
+      {/* Relationship depth control */}
+      {showExtendedRelationships && (
+        <div className="absolute bottom-4 right-4 bg-slate-800 text-white px-3 py-2 rounded-md">
+          <label className="block text-xs text-slate-400">Relationship Depth</label>
+          <div className="flex items-center space-x-2 mt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 bg-slate-700 hover:bg-slate-600 border-slate-600"
+              onClick={() => setMaxRelationshipDepth(Math.max(1, maxRelationshipDepth - 1))}
+              disabled={maxRelationshipDepth <= 1}
+            >
+              -
+            </Button>
+            <span className="w-4 text-center">{maxRelationshipDepth}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 bg-slate-700 hover:bg-slate-600 border-slate-600"
+              onClick={() => setMaxRelationshipDepth(Math.min(5, maxRelationshipDepth + 1))}
+              disabled={maxRelationshipDepth >= 5}
+            >
+              +
+            </Button>
+          </div>
+        </div>
+      )}
+      
+      {/* Main SVG container */}
+      <div ref={containerRef} className="flex-1 overflow-hidden">
+        <svg ref={svgRef} className="w-full h-full"></svg>
+      </div>
+      
+      {/* Node Form Dialog */}
+      <Dialog open={showNodeForm} onOpenChange={setShowNodeForm}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{editingNodeId ? "Edit Node" : "Create New Node"}</DialogTitle>
+            <DialogDescription>
+              {editingNodeId 
+                ? "Update the details of this historical element" 
+                : "Add a new historical element to the knowledge graph"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4">
+            <div className="grid grid-cols-4 gap-4">
+              <div className="col-span-4">
+                <Label htmlFor="name">Name</Label>
+                <Input 
+                  id="name" 
+                  name="name" 
+                  value={nodeFormData.name} 
+                  onChange={handleInputChange} 
+                  placeholder="Enter entity name"
+                />
+              </div>
+              
+              <div className="col-span-2">
+                <Label htmlFor="type">Type</Label>
+                <Select 
+                  value={nodeFormData.type} 
+                  onValueChange={(value) => handleSelectChange("type", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="person">Person</SelectItem>
+                    <SelectItem value="event">Event</SelectItem>
+                    <SelectItem value="document">Document</SelectItem>
+                    <SelectItem value="concept">Concept</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="col-span-2">
+                <Label htmlFor="date">Date</Label>
+                <Input 
+                  id="date" 
+                  name="date" 
+                  value={nodeFormData.date} 
+                  onChange={handleInputChange} 
+                  placeholder="YYYY-MM-DD"
+                />
+              </div>
+              
+              <div className="col-span-4">
+                <Label htmlFor="description">Description</Label>
+                <Textarea 
+                  id="description" 
+                  name="description" 
+                  value={nodeFormData.description} 
+                  onChange={handleInputChange} 
+                  placeholder="Enter a description"
+                  className="resize-none"
+                  rows={3}
+                />
+              </div>
+              
+              <div className="col-span-4">
+                <Label htmlFor="tags">Tags</Label>
+                <Input 
+                  id="tags" 
+                  name="tags" 
+                  value={nodeFormData.tags} 
+                  onChange={handleInputChange} 
+                  placeholder="Comma separated tags"
+                />
+              </div>
+              
+              <div className="col-span-4">
+                <Label htmlFor="imageUrl">Image URL</Label>
+                <Input 
+                  id="imageUrl" 
+                  name="imageUrl" 
+                  value={nodeFormData.imageUrl} 
+                  onChange={handleInputChange} 
+                  placeholder="Optional: URL to an image"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNodeForm(false)}>Cancel</Button>
+            <Button onClick={saveNodeForm}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default HistoryMap;
