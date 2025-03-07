@@ -1,9 +1,8 @@
-
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { generateMapNodes, generateMapLinks, getElementById, getTimelineItems, generateExtendedMapData } from '@/utils/dummyData';
 import { HistoricalElement, MapNode, MapLink, TimelineItem, HistoricalElementType, NodeFormData } from '@/types';
 import * as d3 from 'd3';
-import { Circle, Square, Diamond, Star, Clock, Play, Pause, Layers, Plus, Pencil, Trash, X, Check, Lock } from 'lucide-react';
+import { Circle, Square, Diamond, Star, Clock, Play, Pause, Layers, Plus, Pencil, Trash, X, Check, Lock, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface HistoryMapProps {
   onElementSelect: (element: HistoricalElement) => void;
@@ -325,6 +326,115 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         setCurrentYear(yearRange.min);
       }
       animationRef.current = requestAnimationFrame(animateStep);
+    }
+  };
+
+  const exportToPDF = async () => {
+    if (!svgRef.current || !containerRef.current) return;
+    
+    toast({
+      title: "Preparing PDF Export",
+      description: "Please wait while we generate your visualization...",
+    });
+
+    try {
+      // Create a new PDF document
+      const pdf = new jsPDF('landscape', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      // Set the title
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(24);
+      pdf.setTextColor(155, 135, 245); // ChronoPurple
+      pdf.text("Historical Knowledge Map", pdfWidth / 2, 20, { align: 'center' });
+      
+      // Add the description
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(12);
+      pdf.setTextColor(51, 51, 51);
+      
+      const descriptionText = 
+        "This knowledge map visualizes the complex interconnections between historical figures, events, " +
+        "documents, and concepts. Purple nodes represent people, blue nodes represent events, " +
+        "teal nodes represent documents, and gold nodes represent concepts. The links between nodes " +
+        "show relationships and influences across time, revealing patterns and connections in historical development.";
+      
+      const splitDescription = pdf.splitTextToSize(descriptionText, pdfWidth - 40);
+      pdf.text(splitDescription, pdfWidth / 2, 30, { align: 'center' });
+      
+      // Create a clone of the SVG for export to maintain styling
+      const svgClone = svgRef.current.cloneNode(true) as SVGSVGElement;
+      const bbox = svgRef.current.getBBox();
+      
+      // Set viewBox to capture the entire graph
+      svgClone.setAttribute('viewBox', `${bbox.x - 20} ${bbox.y - 20} ${bbox.width + 40} ${bbox.height + 40}`);
+      svgClone.setAttribute('width', `${bbox.width + 40}`);
+      svgClone.setAttribute('height', `${bbox.height + 40}`);
+      
+      // Put the SVG in a temporary container for html2canvas
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.top = '-9999px';
+      tempContainer.style.width = `${bbox.width + 40}px`;
+      tempContainer.style.height = `${bbox.height + 40}px`;
+      tempContainer.appendChild(svgClone);
+      document.body.appendChild(tempContainer);
+      
+      // Capture the SVG visualization
+      const canvas = await html2canvas(tempContainer, {
+        scale: 2, // Higher scale for better quality
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#1e1e2e', // Dark background matching the app
+      });
+      
+      // Remove the temporary container
+      document.body.removeChild(tempContainer);
+      
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Calculate the image dimensions to fit within the PDF while maintaining aspect ratio
+      const imgWidth = pdfWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      // Add the visualization image, positioned below the description
+      pdf.addImage(imgData, 'PNG', 10, 50, imgWidth, imgHeight);
+      
+      // Add legend at the bottom
+      pdf.setFontSize(10);
+      pdf.setTextColor(100, 100, 100);
+      
+      const legendY = Math.min(pdfHeight - 15, 50 + imgHeight + 10);
+      
+      pdf.text("Legend:", 10, legendY);
+      
+      // Draw color squares and labels
+      const drawLegendItem = (color: string, label: string, x: number, y: number) => {
+        pdf.setFillColor(color);
+        pdf.rect(x, y - 3, 5, 5, 'F');
+        pdf.text(label, x + 8, y);
+      };
+      
+      drawLegendItem('#9b87f5', 'Person', 10, legendY + 5);
+      drawLegendItem('#0EA5E9', 'Event', 50, legendY + 5);
+      drawLegendItem('#14B8A6', 'Document', 90, legendY + 5);
+      drawLegendItem('#F59E0B', 'Concept', 140, legendY + 5);
+      
+      // Save the PDF
+      pdf.save('historical-knowledge-map.pdf');
+      
+      toast({
+        title: "Export Successful",
+        description: "Your visualization has been exported to PDF successfully.",
+      });
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      toast({
+        title: "Export Failed",
+        description: "There was an error exporting your visualization. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1106,6 +1216,19 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   return (
     <div ref={containerRef} className="w-full h-full relative bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden">
       <svg ref={svgRef} className="w-full h-full"/>
+      
+      {/* Add export button */}
+      <div className="absolute top-4 right-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="bg-gray-800/50 text-white border-gray-700 hover:bg-gray-700"
+          onClick={exportToPDF}
+        >
+          <FileDown className="h-4 w-4 mr-2" />
+          Export as PDF
+        </Button>
+      </div>
       
       <Dialog open={showNodeForm} onOpenChange={setShowNodeForm}>
         <DialogContent className="sm:max-w-[500px]">
