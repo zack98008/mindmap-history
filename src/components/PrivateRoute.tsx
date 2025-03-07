@@ -26,7 +26,8 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
     }
   }, [loading, user, location, initialLoadComplete]);
   
-  // Only show loading spinner on initial load, not on subsequent route changes
+  // Show loading spinner only on initial load, not on subsequent route changes
+  // Also don't show spinner if we're redirecting to auth page
   if (loading && !initialLoadComplete) {
     return (
       <div className="min-h-screen flex items-center justify-center">

@@ -63,9 +63,9 @@ const Auth = () => {
       toast.success('Login successful!');
     } catch (error: any) {
       toast.error(error.message || 'An error occurred during login');
-    } finally {
-      setLoading(false);
+      setLoading(false); // Make sure to set loading to false on error
     }
+    // No finally block - loading will be managed by auth state change
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -100,9 +100,9 @@ const Auth = () => {
       toast.success('Registration successful! Please check your email to confirm your account.');
     } catch (error: any) {
       toast.error(error.message || 'An error occurred during signup');
-    } finally {
-      setLoading(false);
+      setLoading(false); // Make sure to set loading to false on error
     }
+    // No finally block - loading will be managed by auth state change
   };
 
   return (

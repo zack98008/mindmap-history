@@ -80,12 +80,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error getting initial session:', error);
       } finally {
         if (mounted) {
+          // Always set loading to false even if there's no session
           setLoading(false);
           setAuthChecked(true);
         }
       }
     };
 
+    // Initialize auth state
     getInitialSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -125,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         setAuthChecked(true);
       }
-    }, 5000); // 5 second safety timeout
+    }, 3000); // Reduced to 3 second safety timeout
 
     return () => clearTimeout(timer);
   }, [loading, authChecked]);
