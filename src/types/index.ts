@@ -66,4 +66,32 @@ export interface NodeFormData {
   description: string;
   tags: string;
   imageUrl: string;
+  x?: number;
+  y?: number;
+}
+
+// New template-related types
+
+export interface TemplateComponent {
+  id: string;
+  title: string;
+  description: string;
+  category: 'core' | 'timeline' | 'people' | 'events' | 'concepts' | 'relationships';
+  prompt: string;
+}
+
+export interface TemplateStructure {
+  id: string;
+  name: string;
+  description: string;
+  components: TemplateComponent[];
+}
+
+export interface Topic {
+  id: string;
+  name: string;
+  description: string;
+  template: TemplateStructure;
+  elements: HistoricalElement[];
+  relationships: Relationship[];
 }

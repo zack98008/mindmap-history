@@ -1,11 +1,14 @@
 
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import SearchBar from '@/components/SearchBar';
 import HistoryMap from '@/components/HistoryMap';
 import TimelineView from '@/components/TimelineView';
 import DetailCard from '@/components/DetailCard';
+import { Button } from '@/components/ui/button';
 import { HistoricalElement } from '@/types';
+import { FileText } from 'lucide-react';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<'map' | 'timeline'>('map');
@@ -73,6 +76,16 @@ const Index = () => {
               <p className="mt-6 text-sm text-muted-foreground">
                 Click on any node in the map or entry in the timeline to view details
               </p>
+              
+              <div className="mt-8 border-t pt-6 w-full">
+                <p className="font-medium mb-3">Try our new Template Builder</p>
+                <Link to="/templates">
+                  <Button className="w-full" variant="outline">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Create Topic Templates
+                  </Button>
+                </Link>
+              </div>
             </div>
           )}
         </div>
