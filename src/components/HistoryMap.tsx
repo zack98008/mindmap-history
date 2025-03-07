@@ -1,6 +1,8 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { generateMapNodes, generateMapLinks, getElementById } from '@/utils/dummyData';
-import { HistoricalElement } from '@/types';
+import { HistoricalElement, MapNode, MapLink } from '@/types';
+import * as d3 from 'd3';
 
 interface HistoryMapProps {
   onElementSelect: (element: HistoricalElement) => void;
@@ -8,314 +10,327 @@ interface HistoryMapProps {
 }
 
 const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElementId }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
-  const [nodes, setNodes] = useState(generateMapNodes());
-  const links = generateMapLinks();
-
-  // Animation frame ID for cleanup
-  const animationRef = useRef<number>();
+  const [nodes, setNodes] = useState<MapNode[]>(generateMapNodes());
+  const [links, setLinks] = useState<MapLink[]>(generateMapLinks());
+  
+  // D3 simulation reference
+  const simulationRef = useRef<any>(null);
   
   // Function to get node color based on type
   const getNodeColor = (type: string) => {
     switch(type) {
-      case 'person': return '#8B5CF6';
-      case 'event': return '#0EA5E9';
-      case 'document': return '#14B8A6';
-      case 'concept': return '#F59E0B';
+      case 'person': return '#8B5CF6'; // purple
+      case 'event': return '#0EA5E9';  // blue
+      case 'document': return '#14B8A6'; // teal
+      case 'concept': return '#F59E0B'; // gold
       default: return '#FFFFFF';
     }
   };
 
-  // Draw the visualization
-  const drawMap = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Function to get node shape data based on type
+  const getNodeShapePath = (type: string, size = 30) => {
+    switch(type) {
+      case 'person': 
+        // Hexagon for person
+        return d3.symbol().type(d3.symbolHexagon).size(size * 40)();
+      case 'event': 
+        // Diamond for event
+        return d3.symbol().type(d3.symbolDiamond).size(size * 40)();
+      case 'document': 
+        // Square for document
+        return d3.symbol().type(d3.symbolSquare).size(size * 40)();
+      case 'concept': 
+        // Star for concept
+        return d3.symbol().type(d3.symbolStar).size(size * 40)();
+      default:
+        // Circle as fallback
+        return d3.symbol().type(d3.symbolCircle).size(size * 40)();
+    }
+  };
+
+  // Initialize D3 visualization
+  useEffect(() => {
+    if (!svgRef.current || !containerRef.current) return;
     
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const svg = d3.select(svgRef.current);
+    const width = containerRef.current.clientWidth;
+    const height = containerRef.current.clientHeight;
     
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Clear previous elements
+    svg.selectAll("*").remove();
     
-    // Set transform for panning and zooming
-    ctx.setTransform(scale, 0, 0, scale, offset.x, offset.y);
+    // Add zoom functionality
+    const zoom = d3.zoom()
+      .scaleExtent([0.3, 3])
+      .on("zoom", (event) => {
+        mainGroup.attr("transform", event.transform);
+      });
     
-    // Draw links
-    ctx.lineWidth = 1;
-    links.forEach(link => {
-      const sourceNode = nodes.find(n => n.id === link.source);
-      const targetNode = nodes.find(n => n.id === link.target);
-      
-      if (sourceNode && targetNode) {
-        ctx.beginPath();
-        ctx.moveTo(sourceNode.x, sourceNode.y);
-        
-        // Curved path
-        const midX = (sourceNode.x + targetNode.x) / 2;
-        const midY = (sourceNode.y + targetNode.y) / 2;
-        const offset = 30;
-        const dx = targetNode.x - sourceNode.x;
-        const dy = targetNode.y - sourceNode.y;
-        const norm = Math.sqrt(dx * dx + dy * dy);
-        const xOffset = -dy / norm * offset;
-        const yOffset = dx / norm * offset;
-        
-        ctx.quadraticCurveTo(midX + xOffset, midY + yOffset, targetNode.x, targetNode.y);
-        
-        // Highlight links connected to selected node
-        if (selectedElementId && (link.source === selectedElementId || link.target === selectedElementId)) {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-          ctx.lineWidth = 2;
-        } else {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-          ctx.lineWidth = 1;
+    svg.call(zoom as any);
+    
+    // Add a background panel for catching events
+    svg.append("rect")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("fill", "transparent");
+    
+    // Create main group that will be transformed
+    const mainGroup = svg.append("g")
+      .attr("class", "main-group");
+    
+    // Define arrow markers for links
+    svg.append("defs").selectAll("marker")
+      .data(["end"])
+      .enter().append("marker")
+      .attr("id", "arrow")
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 25)
+      .attr("refY", 0)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 6)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("fill", "rgba(255, 255, 255, 0.5)")
+      .attr("d", "M0,-5L10,0L0,5");
+    
+    // Create links
+    const link = mainGroup.append("g")
+      .selectAll("path")
+      .data(links)
+      .enter().append("path")
+      .attr("class", "link")
+      .attr("stroke", d => {
+        if (selectedElementId && (d.source === selectedElementId || d.target === selectedElementId)) {
+          return "rgba(255, 255, 255, 0.8)";
         }
-        
-        ctx.stroke();
-      }
-    });
+        return "rgba(255, 255, 255, 0.2)";
+      })
+      .attr("stroke-width", d => {
+        if (selectedElementId && (d.source === selectedElementId || d.target === selectedElementId)) {
+          return 2;
+        }
+        return 1;
+      })
+      .attr("fill", "none")
+      .attr("marker-end", "url(#arrow)");
     
-    // Draw nodes
-    nodes.forEach(node => {
-      const isSelected = selectedElementId === node.id;
-      const isHovered = hoveredNodeId === node.id;
-      const radius = isSelected ? 20 : isHovered ? 18 : 15;
+    // Create node containers
+    const nodeContainer = mainGroup.append("g")
+      .selectAll("g")
+      .data(nodes)
+      .enter().append("g")
+      .attr("class", "node-container")
+      .call(d3.drag<SVGGElement, MapNode>()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
+    
+    // Create node shapes based on type
+    nodeContainer.append("path")
+      .attr("class", "node-shape")
+      .attr("d", d => getNodeShapePath(d.element.type))
+      .attr("fill", d => getNodeColor(d.element.type))
+      .attr("stroke", d => d.id === selectedElementId ? "#FFFFFF" : "rgba(255, 255, 255, 0.5)")
+      .attr("stroke-width", d => d.id === selectedElementId ? 2 : 1)
+      .attr("opacity", 0.9);
+    
+    // Add glow effects for selected and hovered nodes
+    nodeContainer.append("path")
+      .attr("class", "node-glow")
+      .attr("d", d => getNodeShapePath(d.element.type, 40))
+      .attr("fill", d => `${getNodeColor(d.element.type)}33`)
+      .attr("opacity", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 0.7 : 0);
       
-      // Node glow effect
-      if (isSelected || isHovered) {
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius + 5, 0, Math.PI * 2);
-        ctx.fillStyle = `${getNodeColor(node.element.type)}33`;
-        ctx.fill();
-      }
-      
-      // Node circle
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = getNodeColor(node.element.type);
-      ctx.fill();
-      
-      // Node border
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)';
-      ctx.lineWidth = isSelected ? 2 : 1;
-      ctx.stroke();
-      
-      // Node label
-      if (isHovered || isSelected) {
-        ctx.font = 'bold 14px Arial';
-        ctx.fillStyle = '#FFFFFF';
-        ctx.textAlign = 'center';
-        ctx.fillText(node.element.name, node.x, node.y + radius + 20);
-      }
-    });
-  };
-  
-  // Animation loop
-  const animate = () => {
-    drawMap();
-    animationRef.current = requestAnimationFrame(animate);
-  };
-  
-  // Handle mouse events
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    // Add node labels
+    const nodeLabels = nodeContainer.append("text")
+      .attr("class", "node-label")
+      .attr("text-anchor", "middle")
+      .attr("dy", 40)
+      .attr("fill", "#FFFFFF")
+      .attr("font-weight", "bold")
+      .attr("font-size", "12px")
+      .text(d => d.element.name)
+      .attr("opacity", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 1 : 0);
     
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = (e.clientX - rect.left) / scale - offset.x / scale;
-    const mouseY = (e.clientY - rect.top) / scale - offset.y / scale;
-    
-    // Handle dragging
-    if (isDragging) {
-      const dx = e.clientX - dragStart.x;
-      const dy = e.clientY - dragStart.y;
-      setOffset({ x: offset.x + dx, y: offset.y + dy });
-      setDragStart({ x: e.clientX, y: e.clientY });
-      return;
-    }
-    
-    // Hit detection for nodes
-    let hoveredId = null;
-    for (const node of nodes) {
-      const distance = Math.sqrt(Math.pow(node.x - mouseX, 2) + Math.pow(node.y - mouseY, 2));
-      if (distance <= 15) {
-        hoveredId = node.id;
-        break;
-      }
-    }
-    
-    setHoveredNodeId(hoveredId);
-    
-    // Change cursor based on hover state
-    if (hoveredId) {
-      canvas.style.cursor = 'pointer';
-    } else {
-      canvas.style.cursor = 'move';
-    }
-  };
-  
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (hoveredNodeId) {
-      // Node click
-      const node = nodes.find(n => n.id === hoveredNodeId);
-      if (node) {
-        const element = getElementById(node.id);
+    // Interactive events
+    nodeContainer
+      .on("mouseover", function(event, d) {
+        setHoveredNodeId(d.id);
+        d3.select(this).select(".node-glow").attr("opacity", 0.7);
+        d3.select(this).select(".node-label").attr("opacity", 1);
+      })
+      .on("mouseout", function() {
+        setHoveredNodeId(null);
+        d3.select(this).select(".node-glow")
+          .attr("opacity", d => d.id === selectedElementId ? 0.7 : 0);
+        d3.select(this).select(".node-label")
+          .attr("opacity", d => d.id === selectedElementId ? 1 : 0);
+      })
+      .on("click", function(event, d) {
+        const element = getElementById(d.id);
         if (element) {
           onElementSelect(element);
         }
-      }
-    } else {
-      // Start dragging
-      setIsDragging(true);
-      setDragStart({ x: e.clientX, y: e.clientY });
+      });
+    
+    // Force simulation
+    simulationRef.current = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink()
+        .id((d: any) => d.id)
+        .links(links)
+        .distance(150))
+      .force("charge", d3.forceManyBody().strength(-400))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collision", d3.forceCollide().radius(50))
+      .on("tick", ticked);
+    
+    // Position elements on tick
+    function ticked() {
+      link.attr("d", (d: any) => {
+        const sourceNode = nodes.find(n => n.id === d.source.id || n.id === d.source);
+        const targetNode = nodes.find(n => n.id === d.target.id || n.id === d.target);
+        
+        if (!sourceNode || !targetNode) return "";
+        
+        // Direct properties if already processed by d3, or use the original object
+        const source = { 
+          x: d.source.x !== undefined ? d.source.x : sourceNode.x, 
+          y: d.source.y !== undefined ? d.source.y : sourceNode.y 
+        };
+        
+        const target = { 
+          x: d.target.x !== undefined ? d.target.x : targetNode.x, 
+          y: d.target.y !== undefined ? d.target.y : targetNode.y 
+        };
+        
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+        const dr = Math.sqrt(dx * dx + dy * dy);
+        
+        // Create curved paths
+        return `M${source.x},${source.y}A${dr},${dr} 0 0,1 ${target.x},${target.y}`;
+      });
+      
+      nodeContainer.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
     }
-  };
-  
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-  
-  const handleMouseLeave = () => {
-    setIsDragging(false);
-    setHoveredNodeId(null);
-  };
-  
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
     
-    // Calculate where the mouse is pointing in world space before scaling
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
+    // Drag functions
+    function dragstarted(event: any, d: any) {
+      if (!event.active) simulationRef.current.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
     
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    function dragged(event: any, d: any) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
     
-    // Calculate world coordinates under mouse
-    const worldX = (mouseX - offset.x) / scale;
-    const worldY = (mouseY - offset.y) / scale;
+    function dragended(event: any, d: any) {
+      if (!event.active) simulationRef.current.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
     
-    // New scale
-    const newScale = Math.max(0.5, Math.min(3, scale - e.deltaY * 0.001));
-    
-    // Calculate new offset to keep point under mouse stationary
-    const newOffsetX = mouseX - worldX * newScale;
-    const newOffsetY = mouseY - worldY * newScale;
-    
-    setScale(newScale);
-    setOffset({ x: newOffsetX, y: newOffsetY });
-  };
-  
-  // Set up canvas and animation
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    // Set canvas size
-    const updateCanvasSize = () => {
-      if (containerRef.current) {
-        canvas.width = containerRef.current.clientWidth;
-        canvas.height = containerRef.current.clientHeight;
-      }
+    // Handle window resize
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      svg
+        .attr("width", containerRef.current.clientWidth)
+        .attr("height", containerRef.current.clientHeight);
+      
+      simulationRef.current
+        .force("center", d3.forceCenter(
+          containerRef.current.clientWidth / 2, 
+          containerRef.current.clientHeight / 2
+        ));
+      
+      simulationRef.current.alpha(0.3).restart();
     };
     
-    updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
+    window.addEventListener("resize", handleResize);
     
-    // Start animation
-    animationRef.current = requestAnimationFrame(animate);
-    
-    // Cleanup
     return () => {
-      window.removeEventListener('resize', updateCanvasSize);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
+      window.removeEventListener("resize", handleResize);
+      if (simulationRef.current) {
+        simulationRef.current.stop();
       }
     };
-  }, [nodes, hoveredNodeId, selectedElementId, offset, scale]);
+  }, [nodes, links, hoveredNodeId, selectedElementId, onElementSelect]);
   
-  // Update node positions with physics simulation effect
+  // Update node positions based on selected element
   useEffect(() => {
     if (selectedElementId) {
-      // Move selected node to center
-      const selectedNode = nodes.find(n => n.id === selectedElementId);
+      const newNodes = [...nodes];
+      const selectedNode = newNodes.find(n => n.id === selectedElementId);
+      
       if (selectedNode) {
-        // Get related nodes
-        const relatedNodeIds = links
-          .filter(link => link.source === selectedElementId || link.target === selectedElementId)
-          .map(link => link.source === selectedElementId ? link.target : link.source);
+        // Get related links
+        const relatedLinks = links.filter(
+          link => link.source === selectedElementId || link.target === selectedElementId
+        );
         
-        // Create a copy of nodes with new positions
-        const newNodes = [...nodes];
-        const centerX = 500;
-        const centerY = 300;
+        // Get related node IDs
+        const relatedNodeIds = new Set<string>();
+        relatedLinks.forEach(link => {
+          relatedNodeIds.add(typeof link.source === 'string' ? link.source : link.source.id);
+          relatedNodeIds.add(typeof link.target === 'string' ? link.target : link.target.id);
+        });
         
-        // Move selected node to center
-        const selectedIndex = newNodes.findIndex(n => n.id === selectedElementId);
-        if (selectedIndex !== -1) {
-          newNodes[selectedIndex] = {
-            ...newNodes[selectedIndex],
-            x: centerX,
-            y: centerY
-          };
-        }
+        // Filter out the selected node itself
+        relatedNodeIds.delete(selectedElementId);
         
-        // Position related nodes around the selected node
-        const relatedCount = relatedNodeIds.length;
-        if (relatedCount > 0) {
-          relatedNodeIds.forEach((id, index) => {
-            const angle = (index / relatedCount) * Math.PI * 2;
-            const nodeIndex = newNodes.findIndex(n => n.id === id);
-            
-            if (nodeIndex !== -1) {
-              newNodes[nodeIndex] = {
-                ...newNodes[nodeIndex],
-                x: centerX + Math.cos(angle) * 150,
-                y: centerY + Math.sin(angle) * 150
-              };
-            }
+        // Restart simulation with selected node fixed at center
+        if (simulationRef.current) {
+          // Reset all fixed positions
+          newNodes.forEach(node => {
+            node.fx = null;
+            node.fy = null;
           });
           
-          // Position other nodes farther away
-          newNodes.forEach((node, index) => {
-            if (node.id !== selectedElementId && !relatedNodeIds.includes(node.id)) {
-              const angle = (index / (newNodes.length - relatedCount - 1)) * Math.PI * 2;
-              newNodes[index] = {
-                ...node,
-                x: centerX + Math.cos(angle) * 300,
-                y: centerY + Math.sin(angle) * 300
-              };
-            }
-          });
+          // Fix selected node position at center
+          const centerX = containerRef.current ? containerRef.current.clientWidth / 2 : 500;
+          const centerY = containerRef.current ? containerRef.current.clientHeight / 2 : 300;
+          
+          const selectedIndex = newNodes.findIndex(n => n.id === selectedElementId);
+          if (selectedIndex !== -1) {
+            newNodes[selectedIndex].fx = centerX;
+            newNodes[selectedIndex].fy = centerY;
+          }
+          
+          // Strengthen links to related nodes
+          simulationRef.current
+            .force("link", d3.forceLink()
+              .id((d: any) => d.id)
+              .links(links)
+              .distance(link => {
+                const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+                const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+                
+                if (sourceId === selectedElementId || targetId === selectedElementId) {
+                  return 100; // Shorter distance for related nodes
+                }
+                return 200; // Default distance
+              }))
+            .alpha(1)
+            .restart();
         }
-        
-        setNodes(newNodes);
       }
-    } else {
-      // Reset node positions if no node is selected
-      setNodes(generateMapNodes());
     }
-  }, [selectedElementId]);
-  
+  }, [selectedElementId, links]);
+
   return (
     <div
       ref={containerRef}
       className="glass-card w-full h-[calc(100vh-12rem)] relative overflow-hidden"
     >
-      <canvas
-        ref={canvasRef}
-        onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-        onWheel={handleWheel}
+      <svg
+        ref={svgRef}
+        width="100%"
+        height="100%"
         className="w-full h-full"
       />
       <div className="absolute bottom-4 left-4 text-xs text-muted-foreground glass-card px-3 py-2">
@@ -323,20 +338,32 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       </div>
       <div className="absolute top-4 right-4 flex gap-3">
         <div className="glass-card p-2 flex items-center">
-          <div className="w-3 h-3 rounded-full bg-chronoPurple mr-2"></div>
-          <span className="text-xs">Person</span>
+          <svg width="14" height="14" viewBox="0 0 24 24">
+            <path d="M12 16.7L4.8 12l7.2-4.7 7.2 4.7z M12 2.3L4.8 7l7.2 4.7L19.2 7z M12 24l-7.2-4.7 7.2-4.7 7.2 4.7z" 
+              fill="#8B5CF6" stroke="rgba(255, 255, 255, 0.5)" />
+          </svg>
+          <span className="text-xs ml-2">Person</span>
         </div>
         <div className="glass-card p-2 flex items-center">
-          <div className="w-3 h-3 rounded-full bg-chronoBlue mr-2"></div>
-          <span className="text-xs">Event</span>
+          <svg width="14" height="14" viewBox="0 0 24 24">
+            <path d="M12 2l12 12-12 12L0 14z" 
+              fill="#0EA5E9" stroke="rgba(255, 255, 255, 0.5)" />
+          </svg>
+          <span className="text-xs ml-2">Event</span>
         </div>
         <div className="glass-card p-2 flex items-center">
-          <div className="w-3 h-3 rounded-full bg-chronoTeal mr-2"></div>
-          <span className="text-xs">Document</span>
+          <svg width="14" height="14" viewBox="0 0 24 24">
+            <rect x="2" y="2" width="20" height="20" 
+              fill="#14B8A6" stroke="rgba(255, 255, 255, 0.5)" />
+          </svg>
+          <span className="text-xs ml-2">Document</span>
         </div>
         <div className="glass-card p-2 flex items-center">
-          <div className="w-3 h-3 rounded-full bg-chronoGold mr-2"></div>
-          <span className="text-xs">Concept</span>
+          <svg width="14" height="14" viewBox="0 0 24 24">
+            <path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" 
+              fill="#F59E0B" stroke="rgba(255, 255, 255, 0.5)" />
+          </svg>
+          <span className="text-xs ml-2">Concept</span>
         </div>
       </div>
     </div>

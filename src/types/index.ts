@@ -28,11 +28,16 @@ export interface MapNode {
   x: number;
   y: number;
   element: HistoricalElement;
+  // Added for D3 force simulation
+  fx?: number | null;
+  fy?: number | null;
+  vx?: number;
+  vy?: number;
 }
 
 export interface MapLink {
   id: string;
-  source: string;
-  target: string;
+  source: string | MapNode;
+  target: string | MapNode;
   relationship: Relationship;
 }
