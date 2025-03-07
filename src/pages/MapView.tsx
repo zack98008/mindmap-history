@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
@@ -6,7 +5,7 @@ import HistoryMap from '@/components/HistoryMap';
 import DetailCard from '@/components/DetailCard';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Save } from 'lucide-react';
-import { MapNode, MapLink, HistoricalElement } from '@/types';
+import { MapNode, MapLink, HistoricalElement, Relationship } from '@/types';
 import { toast } from 'sonner';
 import { 
   fetchMapNodes, 
@@ -38,16 +37,13 @@ const MapView = () => {
     
     setIsLoading(true);
     try {
-      // Load map nodes and links
       const mapNodes = await fetchMapNodes(mapId);
       const mapLinks = await fetchMapLinks(mapId);
       
       if (mapNodes.length === 0 && !initialLoadDone.current) {
-        // If this is a new map, load all historical elements
         const elements = await fetchHistoricalElements();
         
         if (elements.length > 0) {
-          // Create initial map nodes with random positions
           const width = window.innerWidth * 0.6;
           const height = window.innerHeight * 0.7;
           const centerX = width / 2;
@@ -99,10 +95,8 @@ const MapView = () => {
     
     setIsSaving(true);
     try {
-      // Save node positions
       const nodesSaved = await saveMapPositions(mapId, nodes);
       
-      // Save links
       const linksSaved = await saveMapLinks(mapId, links);
       
       if (nodesSaved && linksSaved) {
@@ -122,7 +116,6 @@ const MapView = () => {
     try {
       const newElement = await createHistoricalElement(nodeData);
       if (newElement) {
-        // Add to existing nodes with random position
         const width = window.innerWidth * 0.6;
         const height = window.innerHeight * 0.7;
         
@@ -149,12 +142,10 @@ const MapView = () => {
     try {
       const updatedElement = await updateHistoricalElement(id, updates);
       if (updatedElement) {
-        // Update the node in the nodes array
         setNodes(nodes.map(node => 
           node.id === id ? { ...node, element: updatedElement } : node
         ));
         
-        // If the updated node is selected, update selectedElement
         if (selectedElement?.id === id) {
           setSelectedElement(updatedElement);
         }
@@ -174,17 +165,13 @@ const MapView = () => {
     try {
       const success = await deleteHistoricalElement(id);
       if (success) {
-        // Remove the node from the nodes array
         setNodes(nodes.filter(node => node.id !== id));
-        
-        // Remove any links connected to this node
         setLinks(links.filter(link => {
           const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
           const targetId = typeof link.target === 'string' ? link.target : link.target.id;
           return sourceId !== id && targetId !== id;
         }));
         
-        // If the deleted node is selected, clear selectedElement
         if (selectedElement?.id === id) {
           setSelectedElement(null);
         }
@@ -202,10 +189,12 @@ const MapView = () => {
   
   const handleCreateLink = async (sourceId: string, targetId: string, type: string, description: string = '') => {
     try {
+      const relationshipType = type as 'influenced' | 'created' | 'participated' | 'documented' | 'custom';
+      
       const newRelationship = await createRelationship({
         sourceId,
         targetId,
-        type,
+        type: relationshipType,
         description
       });
       

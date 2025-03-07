@@ -1,6 +1,7 @@
+
 import React, { useEffect } from 'react';
 import { getTimelineItems } from '@/utils/dummyData';
-import { HistoricalElement } from '@/types';
+import { HistoricalElement, TimelineItem } from '@/types';
 
 interface TimelineViewProps {
   onElementSelect: (element: HistoricalElement) => void;

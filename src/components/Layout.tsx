@@ -22,7 +22,7 @@ const Layout: React.FC<LayoutProps> = ({
       <NavBar 
         activeView={activeView} 
         onViewChange={onViewChange} 
-        userProfile={userProfile}
+        userProfile={userProfile as UserProfile}
       />
       {children}
     </div>
