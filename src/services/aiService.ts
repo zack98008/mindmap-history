@@ -4,7 +4,7 @@ import { HistoricalElement, HistoricalElementType, MapNode, MapLink, Relationshi
 
 // This would be safer to store in an environment variable
 // For demo purposes, this is a placeholder - users should replace with their actual key
-const API_KEY = "YOUR_GEMINI_API_KEY"; 
+const DEFAULT_API_KEY = ""; // Empty default key
 
 interface EntityData {
   name: string;
@@ -92,13 +92,27 @@ export const convertToMapNodes = (results: AnalysisResult): { nodes: MapNode[], 
   };
 };
 
+// Get the API key from localStorage or use default
+const getApiKey = (): string => {
+  return localStorage.getItem('gemini_api_key') || DEFAULT_API_KEY;
+};
+
+// Set the API key in localStorage
+export const setApiKey = (key: string): void => {
+  localStorage.setItem('gemini_api_key', key);
+};
+
 export const analyzeText = async (text: string): Promise<{ nodes: MapNode[], links: MapLink[] }> => {
   try {
-    // Use the user's API key if provided via the window object
-    const userApiKey = (window as any).GEMINI_API_KEY || API_KEY;
+    // Get the API key from localStorage
+    const apiKey = getApiKey();
+    
+    if (!apiKey) {
+      throw new Error('No API key found. Please set your Gemini API key in settings.');
+    }
     
     // Initialize the Gemini API
-    const genAI = new GoogleGenerativeAI(userApiKey);
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
     const prompt = `
