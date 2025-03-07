@@ -11,12 +11,16 @@ import Memorization from "./pages/Memorization";
 import NotFound from "./pages/NotFound";
 import MapGenerator from "./pages/MapGenerator";
 
+// Create a query client
 const queryClient = new QueryClient();
+
+// Set default language for the application
+const defaultLanguage = 'ar'; // Arabic is the default language
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
+      <Toaster position={defaultLanguage === 'ar' ? 'top-left' : 'top-right'} />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />

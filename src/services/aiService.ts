@@ -1,3 +1,4 @@
+
 import { MapNode, MapLink } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,7 +14,7 @@ export const generateMap = async ({
   mapType,
   topic,
   details,
-  language = 'en'
+  language = 'ar'
 }: {
   mapType: 'country' | 'continent' | 'historical' | 'geography' | 'economic';
   topic: string;
@@ -37,7 +38,10 @@ export const generateMap = async ({
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to generate map');
+      const errorMessage = language === 'ar' 
+        ? errorData.error || 'فشل في إنشاء الخريطة' 
+        : errorData.error || 'Failed to generate map';
+      throw new Error(errorMessage);
     }
 
     return await response.json();
@@ -47,20 +51,26 @@ export const generateMap = async ({
   }
 };
 
-export const analyzeText = async (text: string): Promise<{ nodes: MapNode[], links: MapLink[] }> => {
+export const analyzeText = async (text: string, language = 'ar'): Promise<{ nodes: MapNode[], links: MapLink[] }> => {
   try {
     // Call the Supabase Edge Function
     const { data, error } = await supabase.functions.invoke('analyze-text', {
-      body: { text }
+      body: { text, language }
     });
 
     if (error) {
       console.error('Edge function error:', error);
-      throw new Error(`Failed to analyze text: ${error.message}`);
+      const errorMessage = language === 'ar'
+        ? `فشل في تحليل النص: ${error.message}`
+        : `Failed to analyze text: ${error.message}`;
+      throw new Error(errorMessage);
     }
 
     if (!data) {
-      throw new Error('No data returned from analysis');
+      const errorMessage = language === 'ar'
+        ? 'لم يتم إرجاع أي بيانات من التحليل'
+        : 'No data returned from analysis';
+      throw new Error(errorMessage);
     }
 
     return {
