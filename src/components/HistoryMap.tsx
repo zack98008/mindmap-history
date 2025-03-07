@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { generateMapNodes, generateMapLinks, getElementById } from '@/utils/dummyData';
 import { HistoricalElement, MapNode, MapLink } from '@/types';
 import * as d3 from 'd3';
+import { Circle, Square, Diamond, Star } from 'lucide-react';
 
 interface HistoryMapProps {
   onElementSelect: (element: HistoricalElement) => void;
@@ -19,35 +20,41 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   // D3 simulation reference
   const simulationRef = useRef<any>(null);
   
-  // Function to get node color based on type
+  // Function to get node color based on type with more meaningful associations
   const getNodeColor = (type: string) => {
     switch(type) {
-      case 'person': return '#8B5CF6'; // purple
-      case 'event': return '#0EA5E9';  // blue
-      case 'document': return '#14B8A6'; // teal
-      case 'concept': return '#F59E0B'; // gold
+      // Purple - associated with leadership, wisdom, creativity
+      case 'person': return '#9b87f5'; 
+      // Blue - associated with stability, truth, timeline events
+      case 'event': return '#0EA5E9';  
+      // Teal - associated with clarity, knowledge, communication
+      case 'document': return '#14B8A6'; 
+      // Gold - associated with ideas, inspiration, intellect
+      case 'concept': return '#F59E0B'; 
       default: return '#FFFFFF';
     }
   };
 
-  // Function to get node shape path based on type
-  const getNodeShapePath = (type: string, size = 30) => {
+  // Get node icon based on type
+  const getNodeIcon = (type: string, size = 20, color: string) => {
+    const iconProps = {
+      size: size,
+      fill: color,
+      stroke: "rgba(255, 255, 255, 0.8)",
+      strokeWidth: 1.5,
+    };
+
     switch(type) {
       case 'person': 
-        // Hexagon for person
-        return d3.symbol(d3.symbolHexagon, size * 40)();
+        return <Circle {...iconProps} />; // Circle for person - represents individual identity
       case 'event': 
-        // Diamond for event
-        return d3.symbol(d3.symbolDiamond, size * 40)();
+        return <Diamond {...iconProps} />; // Diamond for event - represents significant moments
       case 'document': 
-        // Square for document
-        return d3.symbol(d3.symbolSquare, size * 40)();
+        return <Square {...iconProps} />; // Square for document - represents structured information
       case 'concept': 
-        // Star for concept
-        return d3.symbol(d3.symbolStar, size * 40)();
+        return <Star {...iconProps} />; // Star for concept - represents ideas that shine bright
       default:
-        // Circle as fallback
-        return d3.symbol(d3.symbolCircle, size * 40)();
+        return <Circle {...iconProps} />; // Default circle
     }
   };
 
@@ -81,11 +88,35 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     const mainGroup = svg.append("g")
       .attr("class", "main-group");
     
-    // Define arrow markers for links
-    svg.append("defs").selectAll("marker")
-      .data(["end"])
+    // Define gradient for links
+    const defs = svg.append("defs");
+    
+    // Create multiple gradients for different relationship types
+    const gradientTypes = [
+      {id: "linkGradient-default", colors: [{offset: "0%", color: "rgba(255, 255, 255, 0.1)"}, {offset: "100%", color: "rgba(255, 255, 255, 0.4)"}]},
+      {id: "linkGradient-influenced", colors: [{offset: "0%", color: "rgba(139, 92, 246, 0.1)"}, {offset: "100%", color: "rgba(139, 92, 246, 0.4)"}]},
+      {id: "linkGradient-created", colors: [{offset: "0%", color: "rgba(14, 165, 233, 0.1)"}, {offset: "100%", color: "rgba(14, 165, 233, 0.4)"}]},
+      {id: "linkGradient-participated", colors: [{offset: "0%", color: "rgba(20, 184, 166, 0.1)"}, {offset: "100%", color: "rgba(20, 184, 166, 0.4)"}]},
+      {id: "linkGradient-documented", colors: [{offset: "0%", color: "rgba(245, 158, 11, 0.1)"}, {offset: "100%", color: "rgba(245, 158, 11, 0.4)"}]},
+    ];
+    
+    gradientTypes.forEach(gradient => {
+      const linkGradient = defs.append("linearGradient")
+        .attr("id", gradient.id)
+        .attr("gradientUnits", "userSpaceOnUse");
+      
+      gradient.colors.forEach(color => {
+        linkGradient.append("stop")
+          .attr("offset", color.offset)
+          .attr("stop-color", color.color);
+      });
+    });
+    
+    // Define arrow markers with gradient fill
+    defs.selectAll("marker")
+      .data(["default", "influenced", "created", "participated", "documented"])
       .enter().append("marker")
-      .attr("id", "arrow")
+      .attr("id", d => `arrow-${d}`)
       .attr("viewBox", "0 -5 10 10")
       .attr("refX", 25)
       .attr("refY", 0)
@@ -93,30 +124,60 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       .attr("markerHeight", 6)
       .attr("orient", "auto")
       .append("path")
-      .attr("fill", "rgba(255, 255, 255, 0.5)")
+      .attr("fill", d => {
+        switch(d) {
+          case "influenced": return "rgba(139, 92, 246, 0.6)";
+          case "created": return "rgba(14, 165, 233, 0.6)";
+          case "participated": return "rgba(20, 184, 166, 0.6)";
+          case "documented": return "rgba(245, 158, 11, 0.6)";
+          default: return "rgba(255, 255, 255, 0.6)";
+        }
+      })
       .attr("d", "M0,-5L10,0L0,5");
     
-    // Create links
+    // Create links with elegant gradients
     const link = mainGroup.append("g")
       .selectAll("path")
       .data(links)
       .enter().append("path")
       .attr("class", "link")
       .attr("stroke", d => {
-        if (selectedElementId && (d.source === selectedElementId || d.target === selectedElementId)) {
-          return "rgba(255, 255, 255, 0.8)";
-        }
-        return "rgba(255, 255, 255, 0.2)";
+        // Use relationship type to determine gradient
+        if (d.relationship.type === "influenced") return "url(#linkGradient-influenced)";
+        if (d.relationship.type === "created") return "url(#linkGradient-created)";
+        if (d.relationship.type === "participated") return "url(#linkGradient-participated)";
+        if (d.relationship.type === "documented") return "url(#linkGradient-documented)";
+        return "url(#linkGradient-default)";
       })
       .attr("stroke-width", d => {
-        if (selectedElementId && (d.source === selectedElementId || d.target === selectedElementId)) {
+        if (selectedElementId && (
+          (typeof d.source === 'string' && d.source === selectedElementId) || 
+          (typeof d.source !== 'string' && d.source.id === selectedElementId) ||
+          (typeof d.target === 'string' && d.target === selectedElementId) ||
+          (typeof d.target !== 'string' && d.target.id === selectedElementId)
+        )) {
           return 2;
         }
         return 1;
       })
       .attr("fill", "none")
-      .attr("marker-end", "url(#arrow)");
-    
+      .attr("marker-end", d => {
+        // Use relationship type to determine marker
+        if (d.relationship.type === "influenced") return "url(#arrow-influenced)";
+        if (d.relationship.type === "created") return "url(#arrow-created)";
+        if (d.relationship.type === "participated") return "url(#arrow-participated)";
+        if (d.relationship.type === "documented") return "url(#arrow-documented)";
+        return "url(#arrow-default)";
+      })
+      .style("stroke-dasharray", d => {
+        // Different dash patterns for different relationship types
+        if (d.relationship.type === "influenced") return "1, 0";
+        if (d.relationship.type === "created") return "1, 0";
+        if (d.relationship.type === "participated") return "5, 5";
+        if (d.relationship.type === "documented") return "10, 2";
+        return "1, 0";
+      });
+
     // Create node containers
     const nodeContainer = mainGroup.append("g")
       .selectAll("g")
@@ -128,46 +189,154 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         .on("drag", dragged)
         .on("end", dragended));
     
-    // Create node shapes based on type
-    nodeContainer.append("path")
-      .attr("class", "node-shape")
-      .attr("d", d => getNodeShapePath(d.element.type))
-      .attr("fill", d => getNodeColor(d.element.type))
-      .attr("stroke", d => d.id === selectedElementId ? "#FFFFFF" : "rgba(255, 255, 255, 0.5)")
-      .attr("stroke-width", d => d.id === selectedElementId ? 2 : 1)
-      .attr("opacity", 0.9);
-    
-    // Add glow effects for selected and hovered nodes
-    nodeContainer.append("path")
+    // Add glow effects for nodes
+    nodeContainer.append("circle")
       .attr("class", "node-glow")
-      .attr("d", d => getNodeShapePath(d.element.type, 40))
-      .attr("fill", d => `${getNodeColor(d.element.type)}33`)
-      .attr("opacity", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 0.7 : 0);
+      .attr("r", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 30 : 25)
+      .attr("fill", d => `${getNodeColor(d.element.type)}33`) // Transparent version of node color
+      .attr("filter", "url(#glow)")
+      .attr("opacity", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 0.7 : 0.3);
+    
+    // Create SVG foreignObject to hold React components
+    const nodeIcons = nodeContainer.append("foreignObject")
+      .attr("width", 50)
+      .attr("height", 50)
+      .attr("x", -25)
+      .attr("y", -25)
+      .attr("class", "node-icon")
+      .style("pointer-events", "none");
       
-    // Add node labels
+    // Render React icons to SVG
+    nodeContainer.each(function(d) {
+      const fo = d3.select(this).select("foreignObject");
+      const iconColor = getNodeColor(d.element.type);
+      const iconSize = (d.id === selectedElementId || d.id === hoveredNodeId) ? 28 : 24;
+      
+      // Create a div to render React components
+      const iconContainer = fo.append("xhtml:div")
+        .style("width", "100%")
+        .style("height", "100%")
+        .style("display", "flex")
+        .style("justify-content", "center")
+        .style("align-items", "center");
+      
+      // Create icon element based on node type
+      const iconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      iconSvg.setAttribute("width", `${iconSize}`);
+      iconSvg.setAttribute("height", `${iconSize}`);
+      iconSvg.setAttribute("viewBox", "0 0 24 24");
+      iconSvg.style.filter = "drop-shadow(0px 0px 4px rgba(255, 255, 255, 0.4))";
+      
+      let pathD = "";
+      switch(d.element.type) {
+        case 'person':
+          // Circle for person
+          pathD = "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z";
+          break;
+        case 'event':
+          // Diamond for event
+          pathD = "M12 2l10 10-10 10L2 12z";
+          break;
+        case 'document':
+          // Square for document
+          pathD = "M4 4h16v16H4z";
+          break;
+        case 'concept':
+          // Star for concept
+          pathD = "M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z";
+          break;
+        default:
+          pathD = "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z";
+      }
+      
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", pathD);
+      path.setAttribute("fill", iconColor);
+      path.setAttribute("stroke", "rgba(255, 255, 255, 0.8)");
+      path.setAttribute("stroke-width", "1.5");
+      
+      iconSvg.appendChild(path);
+      iconContainer.node()!.appendChild(iconSvg);
+    });
+      
+    // Add node labels with nice styling
     const nodeLabels = nodeContainer.append("text")
       .attr("class", "node-label")
       .attr("text-anchor", "middle")
       .attr("dy", 40)
       .attr("fill", "#FFFFFF")
-      .attr("font-weight", "bold")
+      .attr("font-weight", "500")
       .attr("font-size", "12px")
+      .attr("text-shadow", "0 0 4px rgba(0, 0, 0, 0.5)")
       .text(d => d.element.name)
       .attr("opacity", d => (d.id === selectedElementId || d.id === hoveredNodeId) ? 1 : 0);
+    
+    // Add a subtle ripple effect on selected node
+    if (selectedElementId) {
+      const selectedNode = nodeContainer.filter(d => d.id === selectedElementId);
+      
+      selectedNode.append("circle")
+        .attr("class", "ripple")
+        .attr("r", 20)
+        .attr("fill", "none")
+        .attr("stroke", d => getNodeColor(d.element.type))
+        .attr("stroke-width", 2)
+        .attr("opacity", 0.5)
+        .call(ripple);
+      
+      function ripple(selection: any) {
+        selection
+          .transition()
+          .duration(2000)
+          .attr("r", 50)
+          .attr("opacity", 0)
+          .on("end", function() {
+            d3.select(this).attr("r", 20).attr("opacity", 0.5);
+            ripple(d3.select(this));
+          });
+      }
+    }
+    
+    // Create glow filter
+    const filter = defs.append("filter")
+      .attr("id", "glow")
+      .attr("x", "-50%")
+      .attr("y", "-50%")
+      .attr("width", "200%")
+      .attr("height", "200%");
+      
+    filter.append("feGaussianBlur")
+      .attr("stdDeviation", "3")
+      .attr("result", "coloredBlur");
+      
+    const feMerge = filter.append("feMerge");
+    feMerge.append("feMergeNode")
+      .attr("in", "coloredBlur");
+    feMerge.append("feMergeNode")
+      .attr("in", "SourceGraphic");
     
     // Interactive events
     nodeContainer
       .on("mouseover", function(event, d) {
         setHoveredNodeId(d.id);
-        d3.select(this).select(".node-glow").attr("opacity", 0.7);
+        d3.select(this).select(".node-glow").attr("opacity", 0.8).attr("r", 35);
         d3.select(this).select(".node-label").attr("opacity", 1);
+        
+        // Scale up the icon
+        const iconContainer = d3.select(this).select("foreignObject");
+        iconContainer.attr("width", 60).attr("height", 60).attr("x", -30).attr("y", -30);
       })
-      .on("mouseout", function() {
+      .on("mouseout", function(event, d) {
         setHoveredNodeId(null);
         d3.select(this).select(".node-glow")
-          .attr("opacity", d => d.id === selectedElementId ? 0.7 : 0);
+          .attr("opacity", d => d.id === selectedElementId ? 0.7 : 0.3)
+          .attr("r", d => d.id === selectedElementId ? 30 : 25);
         d3.select(this).select(".node-label")
           .attr("opacity", d => d.id === selectedElementId ? 1 : 0);
+          
+        // Reset icon size
+        const iconContainer = d3.select(this).select("foreignObject");
+        iconContainer.attr("width", 50).attr("height", 50).attr("x", -25).attr("y", -25);
       })
       .on("click", function(event, d) {
         const element = getElementById(d.id);
@@ -208,7 +377,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         
         const dx = target.x - source.x;
         const dy = target.y - source.y;
-        const dr = Math.sqrt(dx * dx + dy * dy);
+        const dr = Math.sqrt(dx * dx + dy * dy) * 1.5; // More curved path
         
         // Create curved paths
         return `M${source.x},${source.y}A${dr},${dr} 0 0,1 ${target.x},${target.y}`;
@@ -338,31 +507,24 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       </div>
       <div className="absolute top-4 right-4 flex gap-3">
         <div className="glass-card p-2 flex items-center">
-          <svg width="14" height="14" viewBox="0 0 24 24">
-            <path d="M12 16.7L4.8 12l7.2-4.7 7.2 4.7z M12 2.3L4.8 7l7.2 4.7L19.2 7z M12 24l-7.2-4.7 7.2-4.7 7.2 4.7z" 
-              fill="#8B5CF6" stroke="rgba(255, 255, 255, 0.5)" />
-          </svg>
+          <div className="w-4 h-4 rounded-full bg-[#9b87f5] border border-white/20"></div>
           <span className="text-xs ml-2">Person</span>
         </div>
         <div className="glass-card p-2 flex items-center">
-          <svg width="14" height="14" viewBox="0 0 24 24">
-            <path d="M12 2l12 12-12 12L0 14z" 
-              fill="#0EA5E9" stroke="rgba(255, 255, 255, 0.5)" />
-          </svg>
+          <div className="w-4 h-4 bg-[#0EA5E9] transform rotate-45 border border-white/20"></div>
           <span className="text-xs ml-2">Event</span>
         </div>
         <div className="glass-card p-2 flex items-center">
-          <svg width="14" height="14" viewBox="0 0 24 24">
-            <rect x="2" y="2" width="20" height="20" 
-              fill="#14B8A6" stroke="rgba(255, 255, 255, 0.5)" />
-          </svg>
+          <div className="w-4 h-4 bg-[#14B8A6] border border-white/20"></div>
           <span className="text-xs ml-2">Document</span>
         </div>
         <div className="glass-card p-2 flex items-center">
-          <svg width="14" height="14" viewBox="0 0 24 24">
-            <path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" 
-              fill="#F59E0B" stroke="rgba(255, 255, 255, 0.5)" />
-          </svg>
+          <div className="flex items-center justify-center">
+            <div className="w-4 h-4 relative">
+              <div className="absolute inset-0 bg-[#F59E0B] transform rotate-45 border border-white/20"></div>
+              <div className="absolute inset-0 bg-[#F59E0B] transform rotate-[22.5deg] border border-white/20"></div>
+            </div>
+          </div>
           <span className="text-xs ml-2">Concept</span>
         </div>
       </div>
