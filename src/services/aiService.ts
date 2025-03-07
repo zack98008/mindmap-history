@@ -1,15 +1,3 @@
-
-import { MapNode, MapLink } from '@/types';
-import { supabase } from "@/integrations/supabase/client";
-
-// Generate a unique ID for nodes (legacy support)
-const generateUniqueId = () => {
-  return 'node_' + Math.random().toString(36).substr(2, 9);
-};
-
-/**
- * Generates a map based on the provided parameters
- */
 export const generateMap = async ({
   mapType,
   topic,
@@ -35,50 +23,34 @@ export const generateMap = async ({
         language
       })
     });
-
+    
+    // Check if response is OK
     if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = language === 'ar' 
-        ? errorData.error || 'فشل في إنشاء الخريطة' 
-        : errorData.error || 'Failed to generate map';
-      throw new Error(errorMessage);
+      // Try to get the text content first to see what's being returned
+      const responseText = await response.text();
+      console.error('Raw error response:', responseText);
+      
+      // Try to parse as JSON if possible
+      try {
+        const errorData = JSON.parse(responseText);
+        const errorMessage = language === 'ar' 
+          ? errorData.error || 'فشل في إنشاء الخريطة' 
+          : errorData.error || 'Failed to generate map';
+        throw new Error(errorMessage);
+      } catch (parseError) {
+        // If parsing fails, use the status text
+        const errorMessage = language === 'ar'
+          ? `فشل في إنشاء الخريطة: ${response.status} ${response.statusText}`
+          : `Failed to generate map: ${response.status} ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
     }
-
-    return await response.json();
+    
+    // Parse the successful response
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error generating map:', error);
-    throw error;
-  }
-};
-
-export const analyzeText = async (text: string, language = 'ar'): Promise<{ nodes: MapNode[], links: MapLink[] }> => {
-  try {
-    // Call the Supabase Edge Function
-    const { data, error } = await supabase.functions.invoke('analyze-text', {
-      body: { text, language }
-    });
-
-    if (error) {
-      console.error('Edge function error:', error);
-      const errorMessage = language === 'ar'
-        ? `فشل في تحليل النص: ${error.message}`
-        : `Failed to analyze text: ${error.message}`;
-      throw new Error(errorMessage);
-    }
-
-    if (!data) {
-      const errorMessage = language === 'ar'
-        ? 'لم يتم إرجاع أي بيانات من التحليل'
-        : 'No data returned from analysis';
-      throw new Error(errorMessage);
-    }
-
-    return {
-      nodes: data.nodes || [],
-      links: data.links || []
-    };
-  } catch (error) {
-    console.error('Error analyzing text:', error);
     throw error;
   }
 };
