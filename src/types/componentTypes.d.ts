@@ -1,5 +1,6 @@
 
-declare type ExtendedNetworkData = {
+// Extended network data type
+export type ExtendedNetworkData = {
   id: string;
   label: string;
   x: number;
@@ -14,5 +15,12 @@ declare type ExtendedNetworkData = {
   [key: string]: any;
 };
 
-declare function updateNodes(callback: (nodes: any[]) => any[]): void;
-declare function updateLinks(callback: (links: any[]) => any[]): void;
+// Network update function types
+export type UpdateNodesFunction = (callback: (nodes: any[]) => any[]) => void;
+export type UpdateLinksFunction = (callback: (links: any[]) => any[]) => void;
+
+// Declare global functions for backwards compatibility
+declare global {
+  function updateNodes(callback: (nodes: any[]) => any[]): void;
+  function updateLinks(callback: (links: any[]) => any[]): void;
+}
