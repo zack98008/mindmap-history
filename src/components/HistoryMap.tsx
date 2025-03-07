@@ -1,10 +1,17 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { generateMapNodes, generateMapLinks, getElementById, getTimelineItems, generateExtendedMapData } from '@/utils/dummyData';
-import { HistoricalElement, MapNode, MapLink, TimelineItem } from '@/types';
+import { HistoricalElement, MapNode, MapLink, TimelineItem, HistoricalElementType, NodeFormData } from '@/types';
 import * as d3 from 'd3';
-import { Circle, Square, Diamond, Star, Clock, Play, Pause, Layers } from 'lucide-react';
+import { Circle, Square, Diamond, Star, Clock, Play, Pause, Layers, Plus, Pencil, Trash, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 
 interface HistoryMapProps {
   onElementSelect: (element: HistoricalElement) => void;
@@ -12,12 +19,28 @@ interface HistoryMapProps {
 }
 
 const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElementId }) => {
+  const { toast } = useToast();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [nodes, setNodes] = useState<MapNode[]>(generateMapNodes());
   const [links, setLinks] = useState<MapLink[]>(generateMapLinks());
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>(getTimelineItems());
+  
+  // Node creation, editing, and deletion states
+  const [isCreatingNode, setIsCreatingNode] = useState(false);
+  const [isCreatingConnection, setIsCreatingConnection] = useState(false);
+  const [connectionSourceId, setConnectionSourceId] = useState<string | null>(null);
+  const [showNodeForm, setShowNodeForm] = useState(false);
+  const [nodeFormData, setNodeFormData] = useState<NodeFormData>({
+    name: '',
+    type: 'person',
+    date: '',
+    description: '',
+    tags: '',
+    imageUrl: '',
+  });
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   
   // Relationship depth visualization
   const [maxRelationshipDepth, setMaxRelationshipDepth] = useState<number>(3);
@@ -51,6 +74,200 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       case 'concept': return '#F59E0B'; 
       default: return '#FFFFFF';
     }
+  };
+
+  // Generate a unique ID
+  const generateUniqueId = () => {
+    return 'node_' + Math.random().toString(36).substr(2, 9);
+  };
+
+  // Handle form input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setNodeFormData({
+      ...nodeFormData,
+      [name]: value
+    });
+  };
+
+  // Handle select changes
+  const handleSelectChange = (name: string, value: string) => {
+    setNodeFormData({
+      ...nodeFormData,
+      [name]: value
+    });
+  };
+
+  // Create a new node
+  const createNode = (x: number, y: number) => {
+    setNodeFormData({
+      name: '',
+      type: 'person',
+      date: '',
+      description: '',
+      tags: '',
+      imageUrl: '',
+    });
+    setEditingNodeId(null);
+    setShowNodeForm(true);
+    // Store the position for the new node
+    setNodeFormData(prev => ({
+      ...prev,
+      x,
+      y
+    }));
+  };
+
+  // Edit existing node
+  const editNode = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setEditingNodeId(nodeId);
+      setNodeFormData({
+        name: node.element.name,
+        type: node.element.type,
+        date: node.element.date || '',
+        description: node.element.description,
+        tags: node.element.tags.join(', '),
+        imageUrl: node.element.imageUrl || '',
+      });
+      setShowNodeForm(true);
+    }
+  };
+
+  // Delete node
+  const deleteNode = (nodeId: string) => {
+    // Remove the node
+    setNodes(nodes.filter(node => node.id !== nodeId));
+    
+    // Remove any links connected to this node
+    setLinks(links.filter(link => {
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+      return sourceId !== nodeId && targetId !== nodeId;
+    }));
+    
+    toast({
+      title: "Node Deleted",
+      description: "The node has been successfully removed.",
+    });
+  };
+
+  // Save node form data
+  const saveNodeForm = () => {
+    const { name, type, date, description, tags, imageUrl, x, y } = nodeFormData;
+    
+    // Basic validation
+    if (!name.trim()) {
+      toast({
+        title: "Error",
+        description: "Name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    
+    if (editingNodeId) {
+      // Update existing node
+      setNodes(nodes.map(node => {
+        if (node.id === editingNodeId) {
+          return {
+            ...node,
+            element: {
+              ...node.element,
+              name,
+              type: type as HistoricalElementType,
+              date,
+              description,
+              tags: tagsArray,
+              imageUrl: imageUrl || undefined,
+              year: date ? parseInt(date.split('-')[0]) : undefined
+            },
+            isEditing: false
+          };
+        }
+        return node;
+      }));
+      
+      toast({
+        title: "Node Updated",
+        description: "The node has been successfully updated.",
+      });
+    } else {
+      // Create new node
+      const newNodeId = generateUniqueId();
+      const newNode: MapNode = {
+        id: newNodeId,
+        x: x as number || (containerRef.current?.clientWidth || 500) / 2,
+        y: y as number || (containerRef.current?.clientHeight || 300) / 2,
+        element: {
+          id: newNodeId,
+          name,
+          type: type as HistoricalElementType,
+          date,
+          description,
+          tags: tagsArray,
+          imageUrl: imageUrl || undefined,
+          year: date ? parseInt(date.split('-')[0]) : undefined
+        }
+      };
+      
+      setNodes([...nodes, newNode]);
+      
+      // If we're creating a connection, create the link too
+      if (isCreatingConnection && connectionSourceId) {
+        const newLinkId = `link_${generateUniqueId()}`;
+        const newLink: MapLink = {
+          id: newLinkId,
+          source: connectionSourceId,
+          target: newNodeId,
+          relationship: {
+            id: newLinkId,
+            sourceId: connectionSourceId,
+            targetId: newNodeId,
+            description: "Connected to",
+            type: "custom"
+          }
+        };
+        
+        setLinks([...links, newLink]);
+        setIsCreatingConnection(false);
+        setConnectionSourceId(null);
+      }
+      
+      toast({
+        title: "Node Created",
+        description: "A new node has been successfully created.",
+      });
+    }
+    
+    setShowNodeForm(false);
+    setNodeFormData({
+      name: '',
+      type: 'person',
+      date: '',
+      description: '',
+      tags: '',
+      imageUrl: '',
+    });
+    setEditingNodeId(null);
+    
+    // Restart simulation
+    if (simulationRef.current) {
+      simulationRef.current.alpha(0.3).restart();
+    }
+  };
+
+  // Start connection creation
+  const startConnection = (nodeId: string) => {
+    setIsCreatingConnection(true);
+    setConnectionSourceId(nodeId);
+    toast({
+      title: "Creating Connection",
+      description: "Click on another node or empty space to connect",
+    });
   };
 
   // Get node icon based on type
@@ -152,6 +369,27 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     }
   }, [selectedElementId, maxRelationshipDepth, showExtendedRelationships]);
   
+  // Handle background click for node creation
+  const handleBackgroundClick = (event: React.MouseEvent<SVGRectElement>) => {
+    if (isCreatingNode) {
+      const rect = svgRef.current?.getBoundingClientRect();
+      if (rect) {
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        createNode(x, y);
+      }
+      setIsCreatingNode(false);
+    } else if (isCreatingConnection) {
+      // If clicking on background while creating connection, cancel connection
+      setIsCreatingConnection(false);
+      setConnectionSourceId(null);
+      toast({
+        title: "Connection Cancelled",
+        description: "Connection creation has been cancelled",
+      });
+    }
+  };
+  
   // Initialize D3 visualization
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
@@ -176,7 +414,12 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     svg.append("rect")
       .attr("width", width)
       .attr("height", height)
-      .attr("fill", "transparent");
+      .attr("fill", "transparent")
+      .on("click", function(event) {
+        // Convert D3 event to React event
+        const reactEvent = { clientX: event.clientX, clientY: event.clientY } as React.MouseEvent<SVGRectElement>;
+        handleBackgroundClick(reactEvent);
+      });
     
     // Create main group that will be transformed
     const mainGroup = svg.append("g")
@@ -448,409 +691,65 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       }
     }
     
-    // Create glow filter
-    const glowFilter = defs.append("filter")
-      .attr("id", "glow")
-      .attr("x", "-50%")
-      .attr("y", "-50%")
-      .attr("width", "200%")
-      .attr("height", "200%");
-      
-    glowFilter.append("feGaussianBlur")
-      .attr("stdDeviation", "3")
-      .attr("result", "coloredBlur");
-      
-    const glowMerge = glowFilter.append("feMerge");
-    glowMerge.append("feMergeNode")
-      .attr("in", "coloredBlur");
-    glowMerge.append("feMergeNode")
-      .attr("in", "SourceGraphic");
-    
-    // Interactive events
-    nodeContainer
-      .on("mouseover", function(event, d) {
-        setHoveredNodeId(d.id);
-        d3.select(this).select(".node-glow").attr("opacity", 0.8).attr("r", 35);
-        d3.select(this).select(".node-label").attr("opacity", 1);
+    // Add node controls (edit, delete, connect)
+    nodeContainer.each(function(d) {
+      if (d.id === hoveredNodeId) {
+        const node = d3.select(this);
         
-        // Scale up the icon
-        const iconContainer = d3.select(this).select("foreignObject");
-        iconContainer.attr("width", 60).attr("height", 60).attr("x", -30).attr("y", -30);
+        // Add a controls group
+        const controlsGroup = node.append("g")
+          .attr("class", "node-controls")
+          .attr("transform", "translate(0, -50)");
         
-        // Highlight connected nodes
-        if (showExtendedRelationships) {
-          const connectedNodeIds = new Set<string>();
-          
-          links.forEach(link => {
-            const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-            const targetId = typeof link.target === 'string' ? link.target : link.target.id;
-            
-            if (sourceId === d.id) connectedNodeIds.add(targetId);
-            if (targetId === d.id) connectedNodeIds.add(sourceId);
+        // Edit button
+        const editButton = controlsGroup.append("circle")
+          .attr("cx", -25)
+          .attr("cy", 0)
+          .attr("r", 12)
+          .attr("fill", "rgba(255, 255, 255, 0.9)")
+          .attr("stroke", "#9b87f5")
+          .attr("cursor", "pointer")
+          .on("click", function(event) {
+            event.stopPropagation();
+            editNode(d.id);
           });
-          
-          nodeContainer.filter(n => connectedNodeIds.has(n.id))
-            .select(".node-glow")
-            .attr("opacity", 0.6)
-            .attr("r", 30);
-            
-          nodeContainer.filter(n => connectedNodeIds.has(n.id))
-            .select(".node-label")
-            .attr("opacity", 0.8);
-        }
-      })
-      .on("mouseout", function(event, d) {
-        setHoveredNodeId(null);
-        d3.select(this).select(".node-glow")
-          .attr("opacity", d => {
-            const baseOpacity = d.id === selectedElementId ? 0.7 : 0.3;
-            if (d.layer === 1) return baseOpacity;
-            if (d.layer === 2) return baseOpacity * 0.75;
-            if (d.layer === 3) return baseOpacity * 0.5;
-            return baseOpacity * 0.3;
-          })
-          .attr("r", d => d.id === selectedElementId ? 30 : 25);
         
-        d3.select(this).select(".node-label")
-          .attr("opacity", d => d.id === selectedElementId ? 1 : 0);
-          
-        // Reset icon size
-        const iconContainer = d3.select(this).select("foreignObject");
-        iconContainer.attr("width", 50).attr("height", 50).attr("x", -25).attr("y", -25);
+        // Edit icon
+        const editFO = controlsGroup.append("foreignObject")
+          .attr("width", 24)
+          .attr("height", 24)
+          .attr("x", -37)
+          .attr("y", -12)
+          .style("pointer-events", "none");
         
-        // Reset highlighted connected nodes
-        if (showExtendedRelationships) {
-          nodeContainer.select(".node-glow")
-            .attr("opacity", d => {
-              const baseOpacity = d.id === selectedElementId ? 0.7 : 0.3;
-              if (d.layer === 1) return baseOpacity;
-              if (d.layer === 2) return baseOpacity * 0.75;
-              if (d.layer === 3) return baseOpacity * 0.5;
-              return baseOpacity * 0.3;
-            })
-            .attr("r", d => d.id === selectedElementId ? 30 : 25);
-            
-          nodeContainer.select(".node-label")
-            .attr("opacity", d => d.id === selectedElementId ? 1 : 0);
-        }
-      })
-      .on("click", function(event, d) {
-        const element = getElementById(d.id);
-        if (element) {
-          onElementSelect(element);
-        }
-      });
-    
-    // Force simulation with different forces for different layers
-    simulationRef.current = d3.forceSimulation(nodes)
-      .force("link", d3.forceLink()
-        .id((d: any) => d.id)
-        .links(links)
-        .distance(d => {
-          // Adjust distance based on layer
-          if (d.layer === 1) return 150;
-          if (d.layer === 2) return 200;
-          return 250;
-        }))
-      .force("charge", d3.forceManyBody().strength(d => {
-        // Stronger repulsion for primary connections, weaker for extended
-        if (d.layer === 1) return -400;
-        if (d.layer === 2) return -300;
-        return -200;
-      }))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(d => {
-        // Larger collision radius for primary nodes
-        if (d.layer === 1) return 50;
-        if (d.layer === 2) return 40;
-        return 30;
-      }))
-      .on("tick", ticked);
-    
-    // Position elements on tick
-    function ticked() {
-      link.attr("d", (d: any) => {
-        const sourceNode = nodes.find(n => n.id === d.source.id || n.id === d.source);
-        const targetNode = nodes.find(n => n.id === d.target.id || n.id === d.target);
+        const editIconContainer = editFO.append("xhtml:div")
+          .style("width", "100%")
+          .style("height", "100%")
+          .style("display", "flex")
+          .style("justify-content", "center")
+          .style("align-items", "center");
         
-        if (!sourceNode || !targetNode) return "";
+        const editIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        editIconSvg.setAttribute("width", "16");
+        editIconSvg.setAttribute("height", "16");
+        editIconSvg.setAttribute("viewBox", "0 0 24 24");
         
-        // Direct properties if already processed by d3, or use the original object
-        const source = { 
-          x: d.source.x !== undefined ? d.source.x : sourceNode.x, 
-          y: d.source.y !== undefined ? d.source.y : sourceNode.y 
-        };
+        const editIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        editIconPath.setAttribute("d", "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7");
+        editIconPath.setAttribute("fill", "none");
+        editIconPath.setAttribute("stroke", "#9b87f5");
+        editIconPath.setAttribute("stroke-width", "2");
         
-        const target = { 
-          x: d.target.x !== undefined ? d.target.x : targetNode.x, 
-          y: d.target.y !== undefined ? d.target.y : targetNode.y 
-        };
+        const editIconPath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        editIconPath2.setAttribute("d", "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z");
+        editIconPath2.setAttribute("fill", "none");
+        editIconPath2.setAttribute("stroke", "#9b87f5");
+        editIconPath2.setAttribute("stroke-width", "2");
         
-        const dx = target.x - source.x;
-        const dy = target.y - source.y;
-        const dr = Math.sqrt(dx * dx + dy * dy) * 1.5; // More curved path
+        editIconSvg.appendChild(editIconPath);
+        editIconSvg.appendChild(editIconPath2);
+        editIconContainer.node()!.appendChild(editIconSvg);
         
-        // Create curved paths
-        return `M${source.x},${source.y}A${dr},${dr} 0 0,1 ${target.x},${target.y}`;
-      });
-      
-      nodeContainer.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
-    }
-    
-    // Drag functions
-    function dragstarted(event: any, d: any) {
-      if (!event.active) simulationRef.current.alphaTarget(0.3).restart();
-      d.fx = d.x;
-      d.fy = d.y;
-    }
-    
-    function dragged(event: any, d: any) {
-      d.fx = event.x;
-      d.fy = event.y;
-    }
-    
-    function dragended(event: any, d: any) {
-      if (!event.active) simulationRef.current.alphaTarget(0);
-      d.fx = null;
-      d.fy = null;
-    }
-    
-    // Handle window resize
-    const handleResize = () => {
-      if (!containerRef.current) return;
-      svg
-        .attr("width", containerRef.current.clientWidth)
-        .attr("height", containerRef.current.clientHeight);
-      
-      simulationRef.current
-        .force("center", d3.forceCenter(
-          containerRef.current.clientWidth / 2, 
-          containerRef.current.clientHeight / 2
-        ));
-      
-      simulationRef.current.alpha(0.3).restart();
-    };
-    
-    window.addEventListener("resize", handleResize);
-    
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      if (simulationRef.current) {
-        simulationRef.current.stop();
-      }
-    };
-  }, [nodes, links, hoveredNodeId, selectedElementId, onElementSelect, showExtendedRelationships]);
-  
-  // Update node positions based on selected element
-  useEffect(() => {
-    if (selectedElementId) {
-      const newNodes = [...nodes];
-      const selectedNode = newNodes.find(n => n.id === selectedElementId);
-      
-      if (selectedNode) {
-        // Get related links
-        const relatedLinks = links.filter(
-          link => link.source === selectedElementId || link.target === selectedElementId
-        );
-        
-        // Get related node IDs
-        const relatedNodeIds = new Set<string>();
-        relatedLinks.forEach(link => {
-          relatedNodeIds.add(typeof link.source === 'string' ? link.source : link.source.id);
-          relatedNodeIds.add(typeof link.target === 'string' ? link.target : link.target.id);
-        });
-        
-        // Filter out the selected node itself
-        relatedNodeIds.delete(selectedElementId);
-        
-        // Restart simulation with selected node fixed at center
-        if (simulationRef.current) {
-          // Reset all fixed positions
-          newNodes.forEach(node => {
-            node.fx = null;
-            node.fy = null;
-          });
-          
-          // Fix selected node position at center
-          const centerX = containerRef.current ? containerRef.current.clientWidth / 2 : 500;
-          const centerY = containerRef.current ? containerRef.current.clientHeight / 2 : 300;
-          
-          const selectedIndex = newNodes.findIndex(n => n.id === selectedElementId);
-          if (selectedIndex !== -1) {
-            newNodes[selectedIndex].fx = centerX;
-            newNodes[selectedIndex].fy = centerY;
-          }
-          
-          // Strengthen links to related nodes
-          simulationRef.current
-            .force("link", d3.forceLink()
-              .id((d: any) => d.id)
-              .links(links)
-              .distance(link => {
-                const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-                const targetId = typeof link.target === 'string' ? link.target : link.target.id;
-                
-                if (sourceId === selectedElementId || targetId === selectedElementId) {
-                  return 100; // Shorter distance for related nodes
-                }
-                return 200; // Default distance
-              }))
-            .alpha(1)
-            .restart();
-        }
-      }
-    }
-  }, [selectedElementId, links]);
-  
-  // Update the visualization based on current year
-  useEffect(() => {
-    if (!svgRef.current) return;
-    
-    const svg = d3.select(svgRef.current);
-    
-    // Create a map of node IDs to nodes for easy lookup
-    const nodesMap = new Map<string, MapNode>();
-    nodes.forEach(node => nodesMap.set(node.id, node));
-    
-    // Update node visibility
-    svg.selectAll(".node-container")
-      .transition()
-      .duration(500)
-      .attr("opacity", d => calculateNodeVisibility(d, currentYear));
-    
-    // Update link visibility
-    svg.selectAll(".link")
-      .transition()
-      .duration(500)
-      .style("opacity", d => calculateLinkVisibility(d, currentYear, nodesMap));
-  }, [currentYear, nodes]);
-
-  // Toggle extended relationships
-  const handleToggleExtendedRelationships = () => {
-    setShowExtendedRelationships(!showExtendedRelationships);
-  };
-
-  // Change relationship depth
-  const handleChangeRelationshipDepth = (depth: number) => {
-    setMaxRelationshipDepth(depth);
-  };
-
-  return (
-    <div
-      ref={containerRef}
-      className="glass-card w-full h-[calc(100vh-12rem)] relative overflow-hidden"
-    >
-      <svg
-        ref={svgRef}
-        width="100%"
-        height="100%"
-        className="w-full h-full"
-      />
-      <div className="absolute bottom-4 left-4 text-xs text-muted-foreground glass-card px-3 py-2">
-        <p>Scroll to zoom, drag to pan, click nodes to explore</p>
-      </div>
-      <div className="absolute top-4 right-4 flex gap-3">
-        <div className="glass-card p-2 flex items-center">
-          <div className="w-4 h-4 rounded-full bg-[#9b87f5] border border-white/20"></div>
-          <span className="text-xs ml-2">Person</span>
-        </div>
-        <div className="glass-card p-2 flex items-center">
-          <div className="w-4 h-4 bg-[#0EA5E9] transform rotate-45 border border-white/20"></div>
-          <span className="text-xs ml-2">Event</span>
-        </div>
-        <div className="glass-card p-2 flex items-center">
-          <div className="w-4 h-4 bg-[#14B8A6] border border-white/20"></div>
-          <span className="text-xs ml-2">Document</span>
-        </div>
-        <div className="glass-card p-2 flex items-center">
-          <div className="flex items-center justify-center">
-            <div className="w-4 h-4 relative">
-              <div className="absolute inset-0 bg-[#F59E0B] transform rotate-45 border border-white/20"></div>
-              <div className="absolute inset-0 bg-[#F59E0B] transform rotate-[22.5deg] border border-white/20"></div>
-            </div>
-          </div>
-          <span className="text-xs ml-2">Concept</span>
-        </div>
-      </div>
-      
-      {/* Extended relationship controls */}
-      <div className="absolute top-4 left-4 glass-card p-2">
-        <div className="flex items-center mb-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleToggleExtendedRelationships}
-              >
-                <Layers className={`h-4 w-4 ${showExtendedRelationships ? 'text-chronoBlue' : 'text-muted-foreground'}`} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{showExtendedRelationships ? 'Hide' : 'Show'} Extended Relationships</p>
-            </TooltipContent>
-          </Tooltip>
-          <span className="text-xs ml-2">Extended Connections</span>
-        </div>
-        
-        {showExtendedRelationships && (
-          <div className="flex gap-2">
-            <Button 
-              variant={maxRelationshipDepth === 1 ? "default" : "outline"} 
-              size="sm" 
-              className="h-6 text-xs px-2"
-              onClick={() => handleChangeRelationshipDepth(1)}
-            >
-              Direct
-            </Button>
-            <Button 
-              variant={maxRelationshipDepth === 2 ? "default" : "outline"} 
-              size="sm" 
-              className="h-6 text-xs px-2"
-              onClick={() => handleChangeRelationshipDepth(2)}
-            >
-              2° 
-            </Button>
-            <Button 
-              variant={maxRelationshipDepth === 3 ? "default" : "outline"} 
-              size="sm" 
-              className="h-6 text-xs px-2"
-              onClick={() => handleChangeRelationshipDepth(3)}
-            >
-              3°
-            </Button>
-          </div>
-        )}
-      </div>
-      
-      {/* Time controls */}
-      <div className="absolute bottom-4 right-4 glass-card p-2 flex flex-col items-center">
-        <div className="flex items-center mb-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={toggleAnimation}
-          >
-            {isAnimating ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-          </Button>
-          <div className="flex items-center ml-2">
-            <Clock className="h-4 w-4 mr-1" />
-            <span className="text-sm font-medium">{currentYear}</span>
-          </div>
-        </div>
-        <input
-          type="range"
-          min={yearRange.min}
-          max={yearRange.max}
-          value={currentYear}
-          onChange={(e) => setCurrentYear(parseInt(e.target.value))}
-          className="w-full"
-        />
-      </div>
-    </div>
-  );
-};
-
-export default HistoryMap;
+        // Connect button
+        const connectButton = controlsGroup.append("circle")
+          .attr("cx", 0)

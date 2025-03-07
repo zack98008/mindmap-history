@@ -43,6 +43,8 @@ export interface MapNode {
   // Added for relationship layers
   layer?: number; // 1 = direct, 2 = secondary, 3 = tertiary
   opacity?: number;
+  // Added for node editing
+  isEditing?: boolean;
 }
 
 export interface MapLink {
@@ -55,4 +57,13 @@ export interface MapLink {
   opacity?: number;
   // Added for relationship layers
   layer?: number; // 1 = direct, 2 = secondary, 3 = tertiary
+}
+
+export interface NodeFormData {
+  name: string;
+  type: HistoricalElementType;
+  date: string;
+  description: string;
+  tags: string;
+  imageUrl: string;
 }
