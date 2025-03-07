@@ -1,4 +1,4 @@
-<lov-code>
+
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { generateMapNodes, generateMapLinks, getElementById, getTimelineItems, generateExtendedMapData } from '@/utils/dummyData';
 import { HistoricalElement, MapNode, MapLink, TimelineItem, HistoricalElementType, NodeFormData } from '@/types';
@@ -757,4 +757,449 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
           .style("justify-content", "center")
           .style("align-items", "center");
         
+        const editIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        editIconSvg.setAttribute("width", "16");
+        editIconSvg.setAttribute("height", "16");
+        editIconSvg.setAttribute("viewBox", "0 0 24 24");
         
+        const editIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        editIconPath.setAttribute("d", "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7");
+        editIconPath.setAttribute("fill", "none");
+        editIconPath.setAttribute("stroke", "#9b87f5");
+        editIconPath.setAttribute("stroke-width", "2");
+        
+        const editIconPath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        editIconPath2.setAttribute("d", "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z");
+        editIconPath2.setAttribute("fill", "none");
+        editIconPath2.setAttribute("stroke", "#9b87f5");
+        editIconPath2.setAttribute("stroke-width", "2");
+        
+        editIconSvg.appendChild(editIconPath);
+        editIconSvg.appendChild(editIconPath2);
+        editIconContainer.node()!.appendChild(editIconSvg);
+        
+        const deleteButton = controlsGroup.append("circle")
+          .attr("cx", 25)
+          .attr("cy", 0)
+          .attr("r", 12)
+          .attr("fill", "rgba(255, 255, 255, 0.9)")
+          .attr("stroke", "#ef4444")
+          .attr("cursor", "pointer")
+          .on("click", function(event) {
+            event.stopPropagation();
+            deleteNode(d.id);
+          });
+          
+        const deleteFO = controlsGroup.append("foreignObject")
+          .attr("width", 24)
+          .attr("height", 24)
+          .attr("x", 13)
+          .attr("y", -12)
+          .style("pointer-events", "none");
+          
+        const deleteIconContainer = deleteFO.append("xhtml:div")
+          .style("width", "100%")
+          .style("height", "100%")
+          .style("display", "flex")
+          .style("justify-content", "center")
+          .style("align-items", "center");
+          
+        const deleteIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        deleteIconSvg.setAttribute("width", "16");
+        deleteIconSvg.setAttribute("height", "16");
+        deleteIconSvg.setAttribute("viewBox", "0 0 24 24");
+          
+        const deleteIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        deleteIconPath.setAttribute("d", "M3 6h18");
+        deleteIconPath.setAttribute("fill", "none");
+        deleteIconPath.setAttribute("stroke", "#ef4444");
+        deleteIconPath.setAttribute("stroke-width", "2");
+          
+        const deleteIconPath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        deleteIconPath2.setAttribute("d", "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2");
+        deleteIconPath2.setAttribute("fill", "none");
+        deleteIconPath2.setAttribute("stroke", "#ef4444");
+        deleteIconPath2.setAttribute("stroke-width", "2");
+          
+        deleteIconSvg.appendChild(deleteIconPath);
+        deleteIconSvg.appendChild(deleteIconPath2);
+        deleteIconContainer.node()!.appendChild(deleteIconSvg);
+        
+        const connectButton = controlsGroup.append("circle")
+          .attr("cx", 0)
+          .attr("cy", -25)
+          .attr("r", 12)
+          .attr("fill", "rgba(255, 255, 255, 0.9)")
+          .attr("stroke", "#22c55e")
+          .attr("cursor", "pointer")
+          .on("click", function(event) {
+            event.stopPropagation();
+            startConnection(d.id);
+          });
+          
+        const connectFO = controlsGroup.append("foreignObject")
+          .attr("width", 24)
+          .attr("height", 24)
+          .attr("x", -12)
+          .attr("y", -37)
+          .style("pointer-events", "none");
+          
+        const connectIconContainer = connectFO.append("xhtml:div")
+          .style("width", "100%")
+          .style("height", "100%")
+          .style("display", "flex")
+          .style("justify-content", "center")
+          .style("align-items", "center");
+          
+        const connectIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        connectIconSvg.setAttribute("width", "16");
+        connectIconSvg.setAttribute("height", "16");
+        connectIconSvg.setAttribute("viewBox", "0 0 24 24");
+          
+        const connectIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        connectIconPath.setAttribute("d", "M8 12h8");
+        connectIconPath.setAttribute("fill", "none");
+        connectIconPath.setAttribute("stroke", "#22c55e");
+        connectIconPath.setAttribute("stroke-width", "2");
+          
+        const connectIconPath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        connectIconPath2.setAttribute("d", "M12 8v8");
+        connectIconPath2.setAttribute("fill", "none");
+        connectIconPath2.setAttribute("stroke", "#22c55e");
+        connectIconPath2.setAttribute("stroke-width", "2");
+          
+        connectIconSvg.appendChild(connectIconPath);
+        connectIconSvg.appendChild(connectIconPath2);
+        connectIconContainer.node()!.appendChild(connectIconSvg);
+        
+        if (d.isLocked) {
+          const unlockButton = controlsGroup.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 25)
+            .attr("r", 12)
+            .attr("fill", "rgba(255, 255, 255, 0.9)")
+            .attr("stroke", "#FFFFFF")
+            .attr("cursor", "pointer")
+            .on("click", function(event) {
+              event.stopPropagation();
+              setNodes(nodes.map(node => 
+                node.id === d.id ? { ...node, isLocked: false, fx: null, fy: null } : node
+              ));
+            });
+            
+          const unlockFO = controlsGroup.append("foreignObject")
+            .attr("width", 24)
+            .attr("height", 24)
+            .attr("x", -12)
+            .attr("y", 13)
+            .style("pointer-events", "none");
+            
+          const unlockIconContainer = unlockFO.append("xhtml:div")
+            .style("width", "100%")
+            .style("height", "100%")
+            .style("display", "flex")
+            .style("justify-content", "center")
+            .style("align-items", "center");
+            
+          const unlockIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          unlockIconSvg.setAttribute("width", "16");
+          unlockIconSvg.setAttribute("height", "16");
+          unlockIconSvg.setAttribute("viewBox", "0 0 24 24");
+            
+          const unlockIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          unlockIconPath.setAttribute("d", "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Z");
+          unlockIconPath.setAttribute("fill", "none");
+          unlockIconPath.setAttribute("stroke", "#FFFFFF");
+          unlockIconPath.setAttribute("stroke-width", "2");
+            
+          const unlockIconPath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          unlockIconPath2.setAttribute("d", "M7 11V7a5 5 0 0 1 9.9-1");
+          unlockIconPath2.setAttribute("fill", "none");
+          unlockIconPath2.setAttribute("stroke", "#FFFFFF");
+          unlockIconPath2.setAttribute("stroke-width", "2");
+            
+          unlockIconSvg.appendChild(unlockIconPath);
+          unlockIconSvg.appendChild(unlockIconPath2);
+          unlockIconContainer.node()!.appendChild(unlockIconSvg);
+        } else {
+          const lockButton = controlsGroup.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 25)
+            .attr("r", 12)
+            .attr("fill", "rgba(255, 255, 255, 0.9)")
+            .attr("stroke", "#FFFFFF")
+            .attr("cursor", "pointer")
+            .on("click", function(event) {
+              event.stopPropagation();
+              setNodes(nodes.map(node => 
+                node.id === d.id ? { ...node, isLocked: true, fx: node.x, fy: node.y } : node
+              ));
+            });
+            
+          const lockFO = controlsGroup.append("foreignObject")
+            .attr("width", 24)
+            .attr("height", 24)
+            .attr("x", -12)
+            .attr("y", 13)
+            .style("pointer-events", "none");
+            
+          const lockIconContainer = lockFO.append("xhtml:div")
+            .style("width", "100%")
+            .style("height", "100%")
+            .style("display", "flex")
+            .style("justify-content", "center")
+            .style("align-items", "center");
+            
+          const lockIconSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          lockIconSvg.setAttribute("width", "16");
+          lockIconSvg.setAttribute("height", "16");
+          lockIconSvg.setAttribute("viewBox", "0 0 24 24");
+            
+          const lockIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          lockIconPath.setAttribute("d", "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Z");
+          lockIconPath.setAttribute("fill", "none");
+          lockIconPath.setAttribute("stroke", "#FFFFFF");
+          lockIconPath.setAttribute("stroke-width", "2");
+            
+          const lockIconPath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          lockIconPath2.setAttribute("d", "M7 11V7a5 5 0 0 1 10 0v4");
+          lockIconPath2.setAttribute("fill", "none");
+          lockIconPath2.setAttribute("stroke", "#FFFFFF");
+          lockIconPath2.setAttribute("stroke-width", "2");
+            
+          lockIconSvg.appendChild(lockIconPath);
+          lockIconSvg.appendChild(lockIconPath2);
+          lockIconContainer.node()!.appendChild(lockIconSvg);
+        }
+      }
+    });
+    
+    nodeContainer.on("mouseenter", function(event, d) {
+      setHoveredNodeId(d.id);
+    });
+
+    nodeContainer.on("mouseleave", function() {
+      setHoveredNodeId(null);
+    });
+
+    nodeContainer.on("click", function(event, d) {
+      event.stopPropagation();
+      
+      if (isCreatingConnection && connectionSourceId) {
+        // Complete the connection
+        if (connectionSourceId !== d.id) {
+          const newLinkId = `link_${generateUniqueId()}`;
+          const newLink: MapLink = {
+            id: newLinkId,
+            source: connectionSourceId,
+            target: d.id,
+            relationship: {
+              id: newLinkId,
+              sourceId: connectionSourceId,
+              targetId: d.id,
+              description: "Connected to",
+              type: "custom"
+            }
+          };
+          
+          setLinks([...links, newLink]);
+          toast({
+            title: "Connection Created",
+            description: "A new connection has been successfully created.",
+          });
+        } else {
+          toast({
+            title: "Connection Cancelled",
+            description: "Cannot connect a node to itself.",
+            variant: "destructive"
+          });
+        }
+        
+        setIsCreatingConnection(false);
+        setConnectionSourceId(null);
+      } else {
+        // Select the node
+        onElementSelect(d.element);
+      }
+    });
+    
+    // Initialize force simulation
+    simulationRef.current = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id((d: any) => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("x", d3.forceX(width / 2).strength(0.05))
+      .force("y", d3.forceY(height / 2).strength(0.05))
+      .on("tick", ticked);
+    
+    function ticked() {
+      link.attr("d", (d: any) => {
+        const sourceX = d.source.x;
+        const sourceY = d.source.y;
+        const targetX = d.target.x;
+        const targetY = d.target.y;
+        
+        // Calculate the angle
+        const angle = Math.atan2(targetY - sourceY, targetX - sourceX);
+        
+        // Calculate source and target points (adjusted for node size)
+        const sourceNodeRadius = 25;
+        const targetNodeRadius = 25;
+        
+        const sourcePointX = sourceX + sourceNodeRadius * Math.cos(angle);
+        const sourcePointY = sourceY + sourceNodeRadius * Math.sin(angle);
+        
+        const targetPointX = targetX - targetNodeRadius * Math.cos(angle);
+        const targetPointY = targetY - targetNodeRadius * Math.sin(angle);
+        
+        return `M${sourcePointX},${sourcePointY}L${targetPointX},${targetPointY}`;
+      });
+      
+      nodeContainer.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+    }
+    
+    // Set up controls
+    const controlsContainer = document.createElement("div");
+    controlsContainer.className = "absolute bottom-4 left-4 flex gap-2";
+    containerRef.current.appendChild(controlsContainer);
+    
+    const addNodeButton = document.createElement("button");
+    addNodeButton.className = "p-2 bg-primary text-white rounded-full flex items-center justify-center";
+    addNodeButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+    addNodeButton.addEventListener("click", () => {
+      setIsCreatingNode(true);
+      toast({
+        title: "Adding Node",
+        description: "Click on the map to place the new node",
+      });
+    });
+    controlsContainer.appendChild(addNodeButton);
+    
+    const timelineButton = document.createElement("button");
+    timelineButton.className = `p-2 ${isAnimating ? 'bg-destructive' : 'bg-primary'} text-white rounded-full flex items-center justify-center`;
+    timelineButton.innerHTML = isAnimating 
+      ? '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>' 
+      : '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+    timelineButton.addEventListener("click", toggleAnimation);
+    controlsContainer.appendChild(timelineButton);
+    
+    return () => {
+      if (controlsContainer.parentNode) {
+        controlsContainer.parentNode.removeChild(controlsContainer);
+      }
+      if (simulationRef.current) {
+        simulationRef.current.stop();
+      }
+    };
+  }, [
+    nodes, 
+    links, 
+    isAnimating, 
+    hoveredNodeId, 
+    selectedElementId, 
+    generateMapLinks, 
+    calculateLinkVisibility, 
+    calculateNodeVisibility,
+    onElementSelect
+  ]);
+
+  return (
+    <div ref={containerRef} className="w-full h-full relative bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden">
+      <svg ref={svgRef} className="w-full h-full"/>
+      
+      <Dialog open={showNodeForm} onOpenChange={setShowNodeForm}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{editingNodeId ? 'Edit' : 'Create'} Historical Element</DialogTitle>
+            <DialogDescription>
+              {editingNodeId 
+                ? 'Edit the details of this historical element' 
+                : 'Add a new element to your historical map'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">Name</Label>
+              <Input 
+                id="name" 
+                name="name"
+                className="col-span-3" 
+                value={nodeFormData.name} 
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="type" className="text-right">Type</Label>
+              <Select name="type" value={nodeFormData.type} onValueChange={(value) => handleSelectChange('type', value)}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="person">Person</SelectItem>
+                  <SelectItem value="event">Event</SelectItem>
+                  <SelectItem value="document">Document</SelectItem>
+                  <SelectItem value="concept">Concept</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="date" className="text-right">Date</Label>
+              <Input 
+                id="date" 
+                name="date"
+                placeholder="YYYY-MM-DD"
+                className="col-span-3" 
+                value={nodeFormData.date} 
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">Description</Label>
+              <Textarea 
+                id="description" 
+                name="description"
+                className="col-span-3" 
+                value={nodeFormData.description} 
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="tags" className="text-right">Tags</Label>
+              <Input 
+                id="tags" 
+                name="tags"
+                placeholder="Comma separated tags"
+                className="col-span-3" 
+                value={nodeFormData.tags} 
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="imageUrl" className="text-right">Image URL</Label>
+              <Input 
+                id="imageUrl" 
+                name="imageUrl"
+                className="col-span-3" 
+                value={nodeFormData.imageUrl} 
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNodeForm(false)}>Cancel</Button>
+            <Button type="submit" onClick={saveNodeForm}>{editingNodeId ? 'Update' : 'Create'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default HistoryMap;
