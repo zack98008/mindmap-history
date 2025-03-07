@@ -2,6 +2,7 @@
 import React from "react";
 import NavBar from "./NavBar";
 import { useAuth } from "@/contexts/AuthContext";
+import { UserProfile } from "@/types";
 
 interface LayoutProps {
   children: React.ReactNode;

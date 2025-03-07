@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
-import { MagnifyingGlass } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { HistoricalElement } from '@/types';
-import { getElements } from '@/utils/dummyData';
 
 interface SearchBarProps {
   onResultSelect: (result: HistoricalElement) => void;
@@ -40,17 +40,16 @@ const SearchBar: React.FC<SearchBarProps> = ({ onResultSelect, historicalElement
       setResults(historicalElements);
       setFilteredResults(historicalElements);
     } else {
-      // Fallback to dummy data if no historicalElements provided
-      const dummyData = getElements();
-      setResults(dummyData);
-      setFilteredResults(dummyData);
+      // Fallback to empty array if no historicalElements provided
+      setResults([]);
+      setFilteredResults([]);
     }
   }, [historicalElements]);
 
   return (
     <div className="relative">
       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-        <MagnifyingGlass className="h-5 w-5 text-gray-400" />
+        <Search className="h-5 w-5 text-gray-400" />
       </div>
       <Input
         type="search"

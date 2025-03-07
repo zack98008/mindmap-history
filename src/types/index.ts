@@ -1,3 +1,4 @@
+
 export type HistoricalElementType = 'person' | 'event' | 'document' | 'concept' | 'term';
 
 export interface HistoricalElement {
@@ -92,4 +93,11 @@ export interface Topic {
 export interface NetworkAnalysisResult {
   nodes: Set<string>;
   nodeDepths: Map<string, number>;
+}
+
+export interface ExtendedNetworkData {
+  nodeDepths: Map<string, number>;
+  centralNodes: string[];
+  bridgeNodes: string[];
+  peripheralNodes: string[];
 }
