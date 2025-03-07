@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -18,6 +17,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+// Create context with default values
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
@@ -33,8 +33,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [authChecked, setAuthChecked] = useState(false);
 
+  // Helper function to fetch user profile data from Supabase
   const fetchUserProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -60,17 +60,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const getInitialSession = async () => {
       try {
+        // Start by setting loading to true
         setLoading(true);
         console.log("AuthProvider: Fetching initial session");
         
-        // Get session directly
+        // Get current session from Supabase
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
+          // Always set loading to false on error
           if (mounted) {
             setLoading(false);
-            setAuthChecked(true);
           }
           return;
         }
@@ -80,29 +81,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           user: session?.user?.email 
         });
         
+        // If we have a session, update state values
         if (session && mounted) {
           setSession(session);
           setUser(session.user);
           
+          // Fetch additional profile data
           const profile = await fetchUserProfile(session.user.id);
           if (mounted) {
             setUserProfile(profile);
           }
         }
         
+        // CRITICAL: Always set loading to false regardless of session status
+        // This ensures PrivateRoute can make an auth decision
         if (mounted) {
           setLoading(false);
-          setAuthChecked(true);
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
+        // Always set loading to false on error
         if (mounted) {
           setLoading(false);
-          setAuthChecked(true);
         }
       }
     };
 
+    // Get initial session when component mounts
     getInitialSession();
 
     // Subscribe to auth changes
@@ -114,9 +119,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         
         if (mounted) {
+          // Update session and user state
           setSession(newSession);
           setUser(newSession?.user ?? null);
           
+          // Fetch profile data if user is logged in
           if (newSession?.user) {
             const profile = await fetchUserProfile(newSession.user.id);
             if (mounted) {
@@ -126,31 +133,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUserProfile(null);
           }
           
+          // Always ensure loading is set to false after auth state change
           setLoading(false);
-          setAuthChecked(true);
         }
       }
     );
 
+    // Cleanup function to prevent state updates after unmount
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  // Shorter safety timeout to ensure loading state doesn't get stuck
+  // Safety timeout to ensure loading state can't get stuck
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (loading && !authChecked) {
+      if (loading) {
         console.log("AuthProvider: Loading state reset due to timeout");
         setLoading(false);
-        setAuthChecked(true);
       }
-    }, 2000); // Reduced to 2 second safety timeout
+    }, 3000); // 3 second safety timeout
 
     return () => clearTimeout(timer);
-  }, [loading, authChecked]);
+  }, [loading]);
 
+  // Sign out function
   const signOut = async () => {
     try {
       console.log("AuthProvider: Signing out");
@@ -159,13 +167,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Error signing out:', error);
       }
-      // State will be updated by the onAuthStateChange event
+      // Auth state change will be handled by the onAuthStateChange event
     } catch (error) {
       console.error('Error signing out:', error);
       setLoading(false);
     }
   };
 
+  // Context value to provide to consumers
   const value = {
     session,
     user,
