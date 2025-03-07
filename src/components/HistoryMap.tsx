@@ -1340,8 +1340,20 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
         </div>
       )}
       
-      <div ref={containerRef} className="flex-1 overflow-hidden">
-        <svg ref={svgRef} className="w-full h-full"></svg>
+      <div className="globe-container flex-1 overflow-hidden animate-[float_10s_ease-in-out_infinite]">
+        <div className="globe-glow"></div>
+        <div className="globe-dots"></div>
+        <div className="globe-pulse"></div>
+        <div className="globe-meridian"></div>
+        <div className="globe-equator"></div>
+        
+        <div className="globe-ring" style={{width: '90%', height: '90%', top: '5%', left: '5%'}}></div>
+        <div className="globe-ring" style={{width: '70%', height: '70%', top: '15%', left: '15%', animationDelay: '-30s'}}></div>
+        <div className="globe-ring" style={{width: '50%', height: '50%', top: '25%', left: '25%', animationDelay: '-60s'}}></div>
+        
+        <div ref={containerRef} className="w-full h-full overflow-hidden relative">
+          <svg ref={svgRef} className="w-full h-full"></svg>
+        </div>
       </div>
       
       <Dialog open={showNodeForm} onOpenChange={setShowNodeForm}>
@@ -1445,4 +1457,3 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
 };
 
 export default HistoryMap;
-

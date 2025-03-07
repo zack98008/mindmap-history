@@ -78,6 +78,89 @@
     background-size: 1px 8px;
     background-repeat: repeat-y;
   }
+  
+  /* Globe container styles */
+  .globe-container {
+    position: relative;
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: 0 0 100px rgba(139, 92, 246, 0.3), 
+                inset 0 0 60px rgba(59, 130, 246, 0.3);
+    background: radial-gradient(circle at 30% 30%, 
+                rgba(36, 54, 85, 0.8) 0%, 
+                rgba(22, 28, 45, 0.95) 70%);
+  }
+  
+  .globe-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    transform: rotateX(75deg);
+    animation: rotate-ring 120s linear infinite;
+  }
+  
+  .globe-pulse {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    box-shadow: inset 0 0 50px rgba(59, 130, 246, 0.5);
+    opacity: 0;
+    animation: pulse 8s ease-in-out infinite;
+  }
+  
+  .globe-glow {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, 
+                rgba(59, 130, 246, 0.1) 0%, 
+                rgba(22, 28, 45, 0) 70%);
+    filter: blur(20px);
+    animation: glow 8s ease-in-out infinite alternate;
+  }
+  
+  .globe-dots {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+    opacity: 0.3;
+  }
+  
+  .globe-meridian {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 100%;
+    width: 1px;
+    background: linear-gradient(to bottom, 
+                transparent 0%, 
+                rgba(59, 130, 246, 0.3) 20%, 
+                rgba(59, 130, 246, 0.3) 80%, 
+                transparent 100%);
+    transform: translateX(-50%);
+  }
+  
+  .globe-equator {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, 
+                transparent 0%, 
+                rgba(59, 130, 246, 0.3) 20%, 
+                rgba(59, 130, 246, 0.3) 80%, 
+                transparent 100%);
+    transform: translateY(-50%);
+  }
 }
 
 /* Custom colors */
@@ -118,4 +201,43 @@
 
 .text-chronoGold {
   color: var(--chronoGold);
+}
+
+/* Globe animations */
+@keyframes rotate-ring {
+  0% {
+    transform: rotateX(75deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(75deg) rotateZ(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  50% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes glow {
+  0% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
