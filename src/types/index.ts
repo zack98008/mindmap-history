@@ -96,8 +96,15 @@ export interface NetworkAnalysisResult {
 }
 
 export interface ExtendedNetworkData {
+  nodes: Set<string>;
   nodeDepths: Map<string, number>;
   centralNodes: string[];
   bridgeNodes: string[];
   peripheralNodes: string[];
+}
+
+export interface MapItem {
+  id: string;
+  name: string;
+  description: string;
 }
