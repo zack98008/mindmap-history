@@ -12,9 +12,14 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const location = useLocation();
   
   useEffect(() => {
-    console.log("PrivateRoute: Auth state", { loading, isAuthenticated: !!user, currentPath: location.pathname });
+    console.log("PrivateRoute: Auth state", { 
+      loading, 
+      isAuthenticated: !!user, 
+      currentPath: location.pathname 
+    });
   }, [loading, user, location]);
   
+  // Show loading spinner only when we're actually loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -23,12 +28,13 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
     );
   }
   
+  // Redirect if not authenticated
   if (!user) {
     console.log("PrivateRoute: User not authenticated, redirecting to /auth");
-    // Redirect to the login page, but save the current location they were trying to access
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
   
+  // User is authenticated, render children
   return <>{children}</>;
 };
 

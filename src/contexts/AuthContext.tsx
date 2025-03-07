@@ -55,31 +55,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    const getSession = async () => {
+    const getInitialSession = async () => {
       try {
+        setLoading(true);
         console.log("AuthProvider: Fetching initial session");
+        
         const { data: { session } } = await supabase.auth.getSession();
         console.log("AuthProvider: Initial session", { exists: !!session, user: session?.user?.email });
         
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+          
           const profile = await fetchUserProfile(session.user.id);
           setUserProfile(profile);
         }
       } catch (error) {
-        console.error('Error getting session:', error);
+        console.error('Error getting initial session:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    getSession();
+    getInitialSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("AuthProvider: Auth state changed", { event, user: session?.user?.email });
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -103,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log("AuthProvider: Signing out");
       await supabase.auth.signOut();
+      // State will be updated by the onAuthStateChange event
     } catch (error) {
       console.error('Error signing out:', error);
     }
