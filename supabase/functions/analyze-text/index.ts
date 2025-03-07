@@ -120,7 +120,7 @@ serve(async (req) => {
     }
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     
     const prompt = `
       Analyze the following text and extract historical entities (people, events, documents, concepts) and their relationships.
