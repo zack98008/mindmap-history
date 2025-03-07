@@ -50,7 +50,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   const [currentYear, setCurrentYear] = useState(1400);
   const [targetYear, setTargetYear] = useState(2000);
   const animationSpeedRef = useRef(50);
-  const animationRef = useRef<number | null>(null);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const simulationRef = useRef<any>(null);
   
@@ -302,30 +302,62 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   const animateStep = () => {
     if (currentYear >= targetYear) {
       setIsAnimating(false);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+        animationTimeoutRef.current = null;
       }
       return;
     }
     
-    setCurrentYear(prev => Math.min(prev + 1, targetYear));
-    animationRef.current = requestAnimationFrame(animateStep);
+    setCurrentYear(prev => {
+      const newYear = Math.min(prev + 1, targetYear);
+      return newYear;
+    });
+    
+    const nodesMap = new Map<string, MapNode>();
+    
+    const updatedNodes = nodes.map(node => {
+      const opacity = calculateNodeVisibility(node, currentYear);
+      const updatedNode = { ...node, opacity };
+      nodesMap.set(node.id, updatedNode);
+      return updatedNode;
+    });
+    
+    const updatedLinks = links.map(link => {
+      const opacity = calculateLinkVisibility(link, currentYear, nodesMap);
+      return { ...link, opacity };
+    });
+    
+    setNodes(updatedNodes);
+    setLinks(updatedLinks);
+    
+    animationTimeoutRef.current = setTimeout(animateStep, animationSpeedRef.current);
   };
 
   const toggleAnimation = () => {
     if (isAnimating) {
       setIsAnimating(false);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+        animationTimeoutRef.current = null;
       }
+      
+      toast({
+        title: "Animation Paused",
+        description: `Stopped at year ${currentYear}`,
+      });
     } else {
-      setIsAnimating(true);
       if (currentYear >= targetYear) {
         setCurrentYear(yearRange.min);
       }
-      animationRef.current = requestAnimationFrame(animateStep);
+      
+      setIsAnimating(true);
+      toast({
+        title: "Animation Started",
+        description: `Showing historical progression from ${currentYear} to ${targetYear}`,
+      });
+      
+      animationTimeoutRef.current = setTimeout(animateStep, animationSpeedRef.current);
     }
   };
 
@@ -338,18 +370,15 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     });
 
     try {
-      // Create a new PDF document
       const pdf = new jsPDF('landscape', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       
-      // Set the title
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(24);
-      pdf.setTextColor(155, 135, 245); // ChronoPurple
+      pdf.setTextColor(155, 135, 245);
       pdf.text("Historical Knowledge Map", pdfWidth / 2, 20, { align: 'center' });
       
-      // Add the description
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(12);
       pdf.setTextColor(51, 51, 51);
@@ -363,16 +392,13 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       const splitDescription = pdf.splitTextToSize(descriptionText, pdfWidth - 40);
       pdf.text(splitDescription, pdfWidth / 2, 30, { align: 'center' });
       
-      // Create a clone of the SVG for export to maintain styling
       const svgClone = svgRef.current.cloneNode(true) as SVGSVGElement;
       const bbox = svgRef.current.getBBox();
       
-      // Set viewBox to capture the entire graph
       svgClone.setAttribute('viewBox', `${bbox.x - 20} ${bbox.y - 20} ${bbox.width + 40} ${bbox.height + 40}`);
       svgClone.setAttribute('width', `${bbox.width + 40}`);
       svgClone.setAttribute('height', `${bbox.height + 40}`);
       
-      // Put the SVG in a temporary container for html2canvas
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'absolute';
       tempContainer.style.top = '-9999px';
@@ -381,27 +407,22 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       tempContainer.appendChild(svgClone);
       document.body.appendChild(tempContainer);
       
-      // Capture the SVG visualization
       const canvas = await html2canvas(tempContainer, {
-        scale: 2, // Higher scale for better quality
+        scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: '#1e1e2e', // Dark background matching the app
+        backgroundColor: '#1e1e2e'
       });
       
-      // Remove the temporary container
       document.body.removeChild(tempContainer);
       
       const imgData = canvas.toDataURL('image/png');
       
-      // Calculate the image dimensions to fit within the PDF while maintaining aspect ratio
       const imgWidth = pdfWidth - 20;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      // Add the visualization image, positioned below the description
       pdf.addImage(imgData, 'PNG', 10, 50, imgWidth, imgHeight);
       
-      // Add legend at the bottom
       pdf.setFontSize(10);
       pdf.setTextColor(100, 100, 100);
       
@@ -409,7 +430,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       
       pdf.text("Legend:", 10, legendY);
       
-      // Draw color squares and labels
       const drawLegendItem = (color: string, label: string, x: number, y: number) => {
         pdf.setFillColor(color);
         pdf.rect(x, y - 3, 5, 5, 'F');
@@ -421,7 +441,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       drawLegendItem('#14B8A6', 'Document', 90, legendY + 5);
       drawLegendItem('#F59E0B', 'Concept', 140, legendY + 5);
       
-      // Save the PDF
       pdf.save('historical-knowledge-map.pdf');
       
       toast({
@@ -500,20 +519,20 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
   };
 
   const dragstarted = (event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) => {
-    if (d.isLocked) return; // Don't drag locked nodes
+    if (d.isLocked) return;
     if (!event.active) simulationRef.current?.alphaTarget(0.3).restart();
     d.fx = d.x;
     d.fy = d.y;
   };
 
   const dragged = (event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) => {
-    if (d.isLocked) return; // Don't drag locked nodes
+    if (d.isLocked) return;
     d.fx = event.x;
     d.fy = event.y;
   };
 
   const dragended = (event: d3.D3DragEvent<SVGGElement, MapNode, MapNode>, d: MapNode) => {
-    if (d.isLocked) return; // Don't drag locked nodes
+    if (d.isLocked) return;
     if (!event.active) simulationRef.current?.alphaTarget(0);
     if (!d.isLocked) {
       d.fx = null;
@@ -796,7 +815,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       lockIconSvg.setAttribute("viewBox", "0 0 24 24");
       
       const lockIconPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      lockIconPath.setAttribute("d", "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Z");
+      lockIconPath.setAttribute("d", "M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7");
       lockIconPath.setAttribute("fill", "#FFFFFF");
       lockIconPath.setAttribute("stroke", "#FFFFFF");
       lockIconPath.setAttribute("stroke-width", "1.5");
@@ -1096,7 +1115,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       event.stopPropagation();
       
       if (isCreatingConnection && connectionSourceId) {
-        // Complete the connection
         if (connectionSourceId !== d.id) {
           const newLinkId = `link_${generateUniqueId()}`;
           const newLink: MapLink = {
@@ -1128,12 +1146,10 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         setIsCreatingConnection(false);
         setConnectionSourceId(null);
       } else {
-        // Select the node
         onElementSelect(d.element);
       }
     });
     
-    // Initialize force simulation
     simulationRef.current = d3.forceSimulation(nodes)
       .force("link", d3.forceLink(links).id((d: any) => d.id).distance(100))
       .force("charge", d3.forceManyBody().strength(-300))
@@ -1149,10 +1165,8 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
         const targetX = d.target.x;
         const targetY = d.target.y;
         
-        // Calculate the angle
         const angle = Math.atan2(targetY - sourceY, targetX - sourceX);
         
-        // Calculate source and target points (adjusted for node size)
         const sourceNodeRadius = 25;
         const targetNodeRadius = 25;
         
@@ -1168,7 +1182,6 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
       nodeContainer.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
     }
     
-    // Set up controls
     const controlsContainer = document.createElement("div");
     controlsContainer.className = "absolute bottom-4 left-4 flex gap-2";
     containerRef.current.appendChild(controlsContainer);
@@ -1190,15 +1203,33 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     timelineButton.innerHTML = isAnimating 
       ? '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>' 
       : '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
-    timelineButton.addEventListener("click", toggleAnimation);
-    controlsContainer.appendChild(timelineButton);
+    
+    timelineButton.addEventListener("click", () => {
+      toggleAnimation();
+    });
+    
+    const yearDisplay = document.createElement("div");
+    yearDisplay.className = "absolute bottom-4 left-24 bg-gray-800/70 text-white px-3 py-1 rounded-md text-sm";
+    yearDisplay.textContent = `Year: ${currentYear}`;
+    containerRef.current.appendChild(yearDisplay);
+    
+    const yearObserver = new MutationObserver(() => {
+      yearDisplay.textContent = `Year: ${currentYear}`;
+    });
     
     return () => {
       if (controlsContainer.parentNode) {
         controlsContainer.parentNode.removeChild(controlsContainer);
       }
+      if (yearDisplay.parentNode) {
+        yearDisplay.parentNode.removeChild(yearDisplay);
+      }
+      yearObserver.disconnect();
       if (simulationRef.current) {
         simulationRef.current.stop();
+      }
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
       }
     };
   }, [
@@ -1210,14 +1241,29 @@ const HistoryMap: React.FC<HistoryMapProps> = ({ onElementSelect, selectedElemen
     generateMapLinks, 
     calculateLinkVisibility, 
     calculateNodeVisibility,
-    onElementSelect
+    onElementSelect,
+    currentYear
   ]);
+
+  useEffect(() => {
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAnimating) {
+      animationTimeoutRef.current = setTimeout(animateStep, animationSpeedRef.current);
+    } else if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+      animationTimeoutRef.current = null;
+    }
+  }, [isAnimating]);
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden">
       <svg ref={svgRef} className="w-full h-full"/>
       
-      {/* Add export button */}
       <div className="absolute top-4 right-4">
         <Button 
           variant="outline" 
