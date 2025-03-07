@@ -1,5 +1,21 @@
 import { HistoricalElement, HistoricalElementType, MapNode, MapLink, Relationship, TimelineItem } from '@/types';
 
+interface HistoricalPerson extends HistoricalElement {
+  type: 'person';
+}
+
+interface HistoricalEvent extends HistoricalElement {
+  type: 'event';
+}
+
+interface HistoricalDocument extends HistoricalElement {
+  type: 'document';
+}
+
+interface HistoricalConcept extends HistoricalElement {
+  type: 'concept';
+}
+
 const historicalPersons: HistoricalPerson[] = [
   { id: 'person_1', name: 'Cleopatra', type: 'person', description: 'Last active ruler of the Ptolemaic Kingdom of Egypt.', tags: ['ruler', 'egypt', 'ptolemaic'] },
   { id: 'person_2', name: 'Julius Caesar', type: 'person', date: '100 BC - 44 BC', description: 'Roman general and statesman.', tags: ['general', 'rome', 'statesman'] },
@@ -111,7 +127,14 @@ export const generateMapLinks = (): MapLink[] => {
 };
 
 export const generateMapNodes = (): MapNode[] => {
-  return elements.map(element => ({
+  const allElements = [
+    ...getHistoricalPersons(),
+    ...getHistoricalEvents(),
+    ...getHistoricalDocuments(),
+    ...getHistoricalConcepts()
+  ];
+  
+  return allElements.map(element => ({
     id: element.id,
     x: Math.random() * 800,
     y: Math.random() * 600,
@@ -160,7 +183,7 @@ export const generateExtendedMapData = (centralElementId: string, depth: number 
       originalY: y,
       layer: currentDepth,
       opacity: currentDepth === 1 ? 1 : currentDepth === 2 ? 0.8 : depth === 3 ? 0.6 : 0.4
-    };
+    } as MapNode;
     
     nodes.push(node);
     processedNodeIds.add(element.id);
