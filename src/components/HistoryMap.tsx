@@ -698,9 +698,9 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
       .text(d => d.element.name)
       .attr("opacity", d => {
         if (d.id === selectedElementId || d.id === hoveredNodeId) return 1;
-        if (d.layer === 1) return 0;
-        if (d.layer === 2) return 0;
-        return 0;
+        if (d.layer === 1) return 1;
+        if (d.layer === 2) return 0.8;
+        return 0.6;
       });
     
     if (selectedElementId) {
@@ -1129,7 +1129,8 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
       if (!mouseOverControls) {
         setHoveredNodeId(null);
         if (d.id !== selectedElementId) {
-          d3.select(this).select(".node-label").attr("opacity", 0);
+          const opacity = d.layer === 1 ? 1 : d.layer === 2 ? 0.8 : 0.6;
+          d3.select(this).select(".node-label").attr("opacity", opacity);
         }
         d3.select(this).select(".node-lock-toggle")
           .style("opacity", 0);
