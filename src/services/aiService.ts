@@ -1,20 +1,10 @@
 
-import { HistoricalElement, HistoricalElementType, MapNode, MapLink, Relationship, NetworkAnalysisResult } from '@/types';
+import { MapNode, MapLink } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
 
-// Generate a unique ID for nodes
+// Generate a unique ID for nodes (legacy support)
 const generateUniqueId = () => {
   return 'node_' + Math.random().toString(36).substr(2, 9);
-};
-
-// Set the API key in localStorage (legacy support)
-export const setApiKey = (key: string): void => {
-  localStorage.setItem('gemini_api_key', key);
-};
-
-// Get the API key from localStorage (legacy support)
-export const getApiKey = (): string => {
-  return localStorage.getItem('gemini_api_key') || "";
 };
 
 export const analyzeText = async (text: string): Promise<{ nodes: MapNode[], links: MapLink[] }> => {
