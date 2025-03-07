@@ -1,3 +1,4 @@
+
 import { HistoricalElement, HistoricalElementType, MapNode, MapLink, Relationship, TimelineItem } from '@/types';
 
 interface HistoricalPerson extends HistoricalElement {
@@ -120,7 +121,7 @@ export const generateMapLinks = (): MapLink[] => {
     id: relationship.id,
     source: relationship.sourceId,
     target: relationship.targetId,
-    relationship,
+    relationship: relationship,
     layer: 1,
     opacity: 1
   }));
@@ -138,11 +139,16 @@ export const generateMapNodes = (): MapNode[] => {
     id: element.id,
     x: Math.random() * 800,
     y: Math.random() * 600,
-    element,
+    element: element,
     layer: 1,
     opacity: 1
   }));
 };
+
+interface ExtendedNetworkData {
+  nodes?: Set<string>;
+  nodeDepths?: Map<string, number>;
+}
 
 export const generateExtendedMapData = (centralElementId: string, depth: number = 2): { nodes: MapNode[], links: MapLink[] } => {
   const allElements = [
@@ -237,13 +243,43 @@ export const searchElements = (query: string): HistoricalElement[] => {
 };
 
 export const getRelatedElements = (elementId: string): HistoricalElement[] => {
-  return relationships.filter(rel => rel.sourceId === elementId || rel.targetId === elementId).map(rel => getElementById(rel.sourceId || rel.targetId)!);
+  const relatedElementIds = relationships
+    .filter(rel => rel.sourceId === elementId || rel.targetId === elementId)
+    .map(rel => rel.sourceId === elementId ? rel.targetId : rel.sourceId);
+  
+  return [
+    ...getHistoricalPersons(),
+    ...getHistoricalEvents(),
+    ...getHistoricalDocuments(),
+    ...getHistoricalConcepts()
+  ].filter(element => relatedElementIds.includes(element.id));
 };
 
 export const getRelationshipsByElementId = (elementId: string): Relationship[] => {
   return relationships.filter(rel => rel.sourceId === elementId || rel.targetId === elementId);
 };
 
-export const getRelationshipsByDepth = (elementId: string, depth: number = 1): Relationship[] => {
-  return relationships.filter(rel => rel.sourceId === elementId || rel.targetId === elementId).filter(rel => rel.relationship.layer === depth);
+export const getRelationshipsByDepth = (elementId: string, depth: number = 1): ExtendedNetworkData => {
+  const nodes = new Set<string>();
+  const nodeDepths = new Map<string, number>();
+  const processedNodeIds = new Set<string>();
+  
+  const processNode = (nodeId: string, currentDepth: number) => {
+    if (currentDepth > depth || processedNodeIds.has(nodeId)) return;
+    
+    processedNodeIds.add(nodeId);
+    nodes.add(nodeId);
+    nodeDepths.set(nodeId, currentDepth);
+    
+    relationships
+      .filter(rel => rel.sourceId === nodeId || rel.targetId === nodeId)
+      .forEach(rel => {
+        const connectedId = rel.sourceId === nodeId ? rel.targetId : rel.sourceId;
+        processNode(connectedId, currentDepth + 1);
+      });
+  };
+  
+  processNode(elementId, 0);
+  
+  return { nodes, nodeDepths };
 };

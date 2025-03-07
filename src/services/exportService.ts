@@ -97,7 +97,7 @@ export const exportVisualization = async (
       
       if (customNodes?.length) {
         if (elementText) elementText += ', ';
-        elementText += customNodes.map(node => node.data.label).join(', ');
+        elementText += customNodes.map(node => node.element.name || 'Unnamed node').join(', ');
       }
       
       const metadataLines = pdf.splitTextToSize(elementText, 260);

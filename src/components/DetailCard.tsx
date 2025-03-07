@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { X, User, Calendar, FileText, Lightbulb, Link, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,13 +12,18 @@ interface DetailCardProps {
   onElementSelect: (element: HistoricalElement) => void;
 }
 
+interface ExtendedNetworkData {
+  nodes?: Set<string>;
+  nodeDepths?: Map<string, number>;
+}
+
 const DetailCard: React.FC<DetailCardProps> = ({ element, onClose, onElementSelect }) => {
   const [showExtendedRelationships, setShowExtendedRelationships] = React.useState(false);
   const directRelationships = getRelationshipsByElementId(element.id);
   const directRelatedElements = getRelatedElements(element.id);
   
   // Get extended relationship data
-  const extendedNetworkData = getRelationshipsByDepth(element.id, 3);
+  const extendedNetworkData: ExtendedNetworkData = getRelationshipsByDepth(element.id, 3);
   const extendedNodeIds = extendedNetworkData.nodes || new Set();
   const nodeDepths = extendedNetworkData.nodeDepths || new Map();
   
