@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { 
   HistoricalElement, 
@@ -226,9 +227,19 @@ export const deleteRelationship = async (id: string): Promise<boolean> => {
 // User Maps CRUD
 export const fetchUserMaps = async (): Promise<{ id: string, name: string, description: string }[]> => {
   try {
+    // Get the current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.error('No authenticated user found');
+      toast.error('You must be logged in to view maps');
+      return [];
+    }
+    
     const { data, error } = await supabase
       .from('user_maps')
-      .select('*');
+      .select('*')
+      .eq('user_id', user.id);
     
     if (error) throw error;
     
@@ -246,11 +257,21 @@ export const fetchUserMaps = async (): Promise<{ id: string, name: string, descr
 
 export const createUserMap = async (name: string, description: string = ''): Promise<{ id: string, name: string, description: string } | null> => {
   try {
+    // Get the current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.error('No authenticated user found');
+      toast.error('You must be logged in to create a map');
+      return null;
+    }
+    
     const { data, error } = await supabase
       .from('user_maps')
       .insert({
         name,
-        description
+        description,
+        user_id: user.id  // Explicitly set the user_id
       })
       .select()
       .single();
@@ -271,6 +292,15 @@ export const createUserMap = async (name: string, description: string = ''): Pro
 
 export const updateUserMap = async (id: string, name: string, description: string = ''): Promise<{ id: string, name: string, description: string } | null> => {
   try {
+    // Get the current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.error('No authenticated user found');
+      toast.error('You must be logged in to update a map');
+      return null;
+    }
+    
     const { data, error } = await supabase
       .from('user_maps')
       .update({
@@ -279,6 +309,7 @@ export const updateUserMap = async (id: string, name: string, description: strin
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
+      .eq('user_id', user.id)  // Ensure the user can only update their own maps
       .select()
       .single();
     
@@ -298,10 +329,20 @@ export const updateUserMap = async (id: string, name: string, description: strin
 
 export const deleteUserMap = async (id: string): Promise<boolean> => {
   try {
+    // Get the current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.error('No authenticated user found');
+      toast.error('You must be logged in to delete a map');
+      return false;
+    }
+    
     const { error } = await supabase
       .from('user_maps')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', user.id);  // Ensure the user can only delete their own maps
     
     if (error) throw error;
     
