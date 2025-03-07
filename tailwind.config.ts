@@ -19,6 +19,10 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				amiri: ['Amiri', 'serif'],
+				naskh: ['Noto Naskh Arabic', 'serif']
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',

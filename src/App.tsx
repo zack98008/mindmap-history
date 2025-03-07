@@ -17,23 +17,29 @@ const queryClient = new QueryClient();
 // Set default language for the application
 const defaultLanguage = 'ar'; // Arabic is the default language
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster position={defaultLanguage === 'ar' ? 'top-left' : 'top-right'} />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/maps" element={<Maps />} />
-          <Route path="/map/:mapId" element={<MapView />} />
-          <Route path="/templates" element={<TemplateBuilder />} />
-          <Route path="/memorization" element={<Memorization />} />
-          <Route path="/generate" element={<MapGenerator />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Set the dir attribute on document for RTL support
+  document.documentElement.dir = 'rtl';
+  document.documentElement.lang = 'ar';
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster position="top-left" />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/maps" element={<Maps />} />
+            <Route path="/map/:mapId" element={<MapView />} />
+            <Route path="/templates" element={<TemplateBuilder />} />
+            <Route path="/memorization" element={<Memorization />} />
+            <Route path="/generate" element={<MapGenerator />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

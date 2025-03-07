@@ -10,6 +10,11 @@ export interface HistoricalElement {
   tags: string[];
   imageUrl?: string;
   year?: number; // Extracted year for timeline/animation
+  // Database fields
+  image_url?: string;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Relationship {
