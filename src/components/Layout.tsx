@@ -6,21 +6,18 @@ interface LayoutProps {
   children: React.ReactNode;
   activeView?: 'map' | 'timeline';
   onViewChange?: (view: 'map' | 'timeline') => void;
-  language?: string;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
   children, 
   activeView, 
-  onViewChange,
-  language = 'ar' // Default to Arabic
+  onViewChange 
 }) => {
   return (
-    <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto">
       <NavBar 
         activeView={activeView} 
-        onViewChange={onViewChange}
-        language={language}
+        onViewChange={onViewChange} 
       />
       {children}
     </div>

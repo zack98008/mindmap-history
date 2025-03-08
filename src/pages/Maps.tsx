@@ -46,51 +46,42 @@ const Maps = () => {
 
   const handleCreateMap = async () => {
     if (!newMapName.trim()) {
-      toast.error('الرجاء إدخال اسم الخريطة');
+      toast.error('Please enter a map name');
       return;
     }
 
     try {
-      const newMap = await createUserMap({
-        name: newMapName,
-        description: newMapDescription
-      });
-      
+      const newMap = await createUserMap(newMapName, newMapDescription);
       if (newMap) {
         setMaps([...maps, newMap]);
         setNewMapName('');
         setNewMapDescription('');
         setIsCreateDialogOpen(false);
-        toast.success('تم إنشاء الخريطة بنجاح');
+        toast.success('Map created successfully');
       }
     } catch (error) {
       console.error('Error creating map:', error);
-      toast.error('فشل في إنشاء الخريطة');
+      toast.error('Failed to create map');
     }
   };
 
   const handleEditMap = async () => {
     if (!editingMap || !editingMap.name.trim()) {
-      toast.error('الرجاء إدخال اسم الخريطة');
+      toast.error('Please enter a map name');
       return;
     }
 
     try {
-      const updatedMap = await updateUserMap({
-        id: editingMap.id,
-        name: editingMap.name, 
-        description: editingMap.description
-      });
-      
+      const updatedMap = await updateUserMap(editingMap.id, editingMap.name, editingMap.description);
       if (updatedMap) {
         setMaps(maps.map(map => map.id === updatedMap.id ? updatedMap : map));
         setEditingMap(null);
         setIsEditDialogOpen(false);
-        toast.success('تم تحديث الخريطة بنجاح');
+        toast.success('Map updated successfully');
       }
     } catch (error) {
       console.error('Error updating map:', error);
-      toast.error('فشل في تحديث الخريطة');
+      toast.error('Failed to update map');
     }
   };
 

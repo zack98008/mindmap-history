@@ -1,89 +1,146 @@
 
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Map, Clock, PlusCircle, BookOpen, Sparkles } from "lucide-react";
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { 
+  Network, 
+  Clock, 
+  FileText, 
+  BrainCircuit,
+  Map,
+  Home,
+  Globe
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface NavBarProps {
   activeView?: 'map' | 'timeline';
   onViewChange?: (view: 'map' | 'timeline') => void;
-  language?: string;
 }
 
 const NavBar: React.FC<NavBarProps> = ({ 
-  activeView, 
-  onViewChange,
-  language = 'ar' // Default to Arabic
+  activeView = 'map', 
+  onViewChange = () => {}
 }) => {
-  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
-  const isRTL = language === 'ar';
+  const showViewToggle = location.pathname === '/';
   
   return (
-    <div className="mb-6">
-      <div className="flex justify-between items-center">
-        <h1 
-          className="text-2xl font-bold cursor-pointer" 
-          onClick={() => navigate('/')}
-        >
-          {language === 'ar' ? 'كرونومايند' : 'ChronoMind'}
-        </h1>
+    <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+      <div className="flex items-center">
+        <Link to="/" className="text-2xl font-bold mr-4 bg-gradient-to-r from-chronoPurple to-chronoBlue bg-clip-text text-transparent">
+          ChronoMind
+        </Link>
         
-        <div className="flex space-x-2">
-          {activeView && onViewChange ? (
-            <div className="border border-gray-700 rounded-md overflow-hidden flex">
-              <Button
-                variant={activeView === 'map' ? 'default' : 'ghost'}
-                size="sm"
-                className={`rounded-none ${isRTL ? 'flex-row-reverse' : ''}`}
-                onClick={() => onViewChange('map')}
-              >
-                <Map className={`${isRTL ? 'ml-2' : 'mr-2'} h-4 w-4`} />
-                {language === 'ar' ? 'خريطة' : 'Map'}
-              </Button>
-              <Button
-                variant={activeView === 'timeline' ? 'default' : 'ghost'}
-                size="sm"
-                className={`rounded-none ${isRTL ? 'flex-row-reverse' : ''}`}
-                onClick={() => onViewChange('timeline')}
-              >
-                <Clock className={`${isRTL ? 'ml-2' : 'mr-2'} h-4 w-4`} />
-                {language === 'ar' ? 'خط زمني' : 'Timeline'}
-              </Button>
-            </div>
-          ) : (
-            <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className={`${isRTL ? 'flex-row-reverse' : ''}`}
-                onClick={() => navigate('/maps')}
-              >
-                <Map className={`${isRTL ? 'ml-2' : 'mr-2'} h-4 w-4`} />
-                {language === 'ar' ? 'الخرائط' : 'Maps'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`${isRTL ? 'flex-row-reverse' : ''}`}
-                onClick={() => navigate('/generate')}
-              >
-                <Sparkles className={`${isRTL ? 'ml-2' : 'mr-2'} h-4 w-4`} />
-                {language === 'ar' ? 'إنشاء خريطة' : 'Generate Map'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`${isRTL ? 'flex-row-reverse' : ''}`}
-                onClick={() => navigate('/memorization')}
-              >
-                <BookOpen className={`${isRTL ? 'ml-2' : 'mr-2'} h-4 w-4`} />
-                {language === 'ar' ? 'الحفظ' : 'Memorization'}
-              </Button>
-            </div>
-          )}
-        </div>
+        {showViewToggle && (
+          <div className="hidden sm:flex gap-2">
+            <Button 
+              variant={activeView === 'map' ? 'default' : 'outline'} 
+              size="sm"
+              onClick={() => onViewChange('map')}
+              className={activeView === 'map' ? 'bg-chronoPurple hover:bg-chronoPurple/90' : ''}
+            >
+              <Network className="h-4 w-4 mr-2" />
+              Network View
+            </Button>
+            
+            <Button 
+              variant={activeView === 'timeline' ? 'default' : 'outline'} 
+              size="sm"
+              onClick={() => onViewChange('timeline')}
+              className={activeView === 'timeline' ? 'bg-chronoBlue hover:bg-chronoBlue/90' : ''}
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Timeline View
+            </Button>
+          </div>
+        )}
       </div>
+      
+      <div className="flex gap-2 items-center">
+        <Button 
+          variant={isActive('/') ? 'default' : 'outline'}
+          size="sm"
+          asChild
+        >
+          <Link to="/">
+            <Home className="h-4 w-4 mr-2" />
+            Dashboard
+          </Link>
+        </Button>
+        
+        <Button 
+          variant={isActive('/maps') ? 'default' : 'outline'} 
+          size="sm"
+          asChild
+        >
+          <Link to="/maps">
+            <Map className="h-4 w-4 mr-2" />
+            My Maps
+          </Link>
+        </Button>
+        
+        <Button 
+          variant={isActive('/generate') ? 'default' : 'outline'} 
+          size="sm"
+          asChild
+        >
+          <Link to="/generate">
+            <Globe className="h-4 w-4 mr-2" />
+            Generate Maps
+          </Link>
+        </Button>
+        
+        <Button 
+          variant={isActive('/templates') ? 'default' : 'outline'} 
+          size="sm"
+          asChild
+        >
+          <Link to="/templates">
+            <FileText className="h-4 w-4 mr-2" />
+            Templates
+          </Link>
+        </Button>
+        
+        <Button 
+          variant={isActive('/memorization') ? 'default' : 'outline'} 
+          size="sm"
+          asChild
+        >
+          <Link to="/memorization">
+            <BrainCircuit className="h-4 w-4 mr-2" />
+            Memorization
+          </Link>
+        </Button>
+      </div>
+      
+      {showViewToggle && (
+        <div className="sm:hidden flex gap-2">
+          <Button 
+            variant={activeView === 'map' ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => onViewChange('map')}
+            className={activeView === 'map' ? 'bg-chronoPurple hover:bg-chronoPurple/90' : ''}
+          >
+            <Network className="h-4 w-4 mr-2" />
+            Network
+          </Button>
+          
+          <Button 
+            variant={activeView === 'timeline' ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => onViewChange('timeline')}
+            className={activeView === 'timeline' ? 'bg-chronoBlue hover:bg-chronoBlue/90' : ''}
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            Timeline
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

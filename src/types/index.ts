@@ -10,11 +10,6 @@ export interface HistoricalElement {
   tags: string[];
   imageUrl?: string;
   year?: number; // Extracted year for timeline/animation
-  // Database fields
-  image_url?: string;
-  user_id?: string;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export interface Relationship {
@@ -101,15 +96,8 @@ export interface NetworkAnalysisResult {
 }
 
 export interface ExtendedNetworkData {
-  nodes: Set<string>;
   nodeDepths: Map<string, number>;
   centralNodes: string[];
   bridgeNodes: string[];
   peripheralNodes: string[];
-}
-
-export interface MapItem {
-  id: string;
-  name: string;
-  description: string;
 }
