@@ -87,6 +87,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
   const alphaValueRef = useRef(0.1);
   
   const simulationRef = useRef<any>(null);
+  const zoomRef = useRef<any>(null);
   
   const yearRange = useMemo(() => {
     const years = timelineItems.map(item => item.year);
@@ -499,6 +500,26 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
     }
   };
 
+  const focusOnNode = (nodeId: string, scale = 1.2) => {
+    try {
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node || !svgRef.current || !containerRef.current || !zoomRef.current) return;
+      const svg = d3.select(svgRef.current);
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+
+      const transform = d3.zoomIdentity
+        .translate(width / 2 - node.x * scale, height / 2 - node.y * scale)
+        .scale(scale);
+
+      svg.transition()
+        .duration(700)
+        .call(zoomRef.current.transform as any, transform);
+    } catch (e) {
+      console.error('focusOnNode error:', e);
+    }
+  };
+
   useEffect(() => {
     if (customNodes) {
       setNodes(customNodes);
@@ -603,6 +624,8 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
       .on("zoom", (event) => {
         mainGroup.attr("transform", event.transform);
       });
+    
+    zoomRef.current = zoom;
     
     svg.call(zoom as any);
     
@@ -902,7 +925,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
     }
     
     nodeContainer.each(function(d) {
-      if (d.id === hoveredNodeId) {
+      if (d.id === hoveredNodeId || d.id === selectedElementId) {
         const node = d3.select(this);
         
         const controlsGroup = node.append("g")
@@ -1262,7 +1285,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
           d3.select(this).select(".node-label").attr("opacity", opacity);
         }
         d3.select(this).select(".node-lock-toggle")
-          .style("opacity", 0);
+          .style("opacity", d.id === selectedElementId ? 1 : 0);
       }
     })
     .on("click", function(event, d) {
@@ -1319,6 +1342,7 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
           updateNodes(updatedNodes);
           
           onElementSelect(d.element);
+          focusOnNode(d.id);
         }
       }
     });

@@ -15,11 +15,13 @@ const TimelineView: React.FC<TimelineViewProps> = ({ onElementSelect, historical
     if (historicalElements) {
       // Filter only elements with years
       const validTimelineItems: TimelineItem[] = historicalElements
-        .filter(element => element.year !== undefined)
-        .map(element => ({
-          ...element,
-          year: element.year as number
-        }))
+        .map(element => {
+          const derivedYear = element.year ?? parseInt((element.date || '').split('-')[0] || '');
+          return derivedYear && !isNaN(derivedYear)
+            ? ({ ...(element as any), year: derivedYear } as TimelineItem)
+            : null;
+        })
+        .filter((e): e is TimelineItem => e !== null)
         .sort((a, b) => a.year - b.year);
       
       setTimelineItems(validTimelineItems);
