@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, User, Calendar, FileText, Lightbulb, Link, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { HistoricalElement } from '@/types';
+import { HistoricalElement, NetworkAnalysisResult } from '@/types';
 import { getRelatedElements, getRelationshipsByElementId, getRelationshipsByDepth } from '@/utils/dummyData';
 
 interface DetailCardProps {
@@ -22,7 +22,7 @@ const DetailCard: React.FC<DetailCardProps> = ({
   const directRelationships = getRelationshipsByElementId(element.id);
   const directRelatedElements = getRelatedElements(element.id);
   
-  const extendedNetworkData: ExtendedNetworkData = getRelationshipsByDepth(element.id, 3);
+  const extendedNetworkData = getRelationshipsByDepth(element.id, 3);
   const extendedNodeIds = extendedNetworkData.nodes || new Set();
   const nodeDepths = extendedNetworkData.nodeDepths || new Map();
   

@@ -1,1 +1,7 @@
 project_id = "blrqidlvvbqffekjbfhk"
+
+[functions.analyze-text]
+verify_jwt = false
+
+[functions.generate-map]
+verify_jwt = false

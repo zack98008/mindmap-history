@@ -50,6 +50,16 @@ const HistoryMap: React.FC<HistoryMapProps> = ({
   const [links, setLinks] = useState<MapLink[]>(customLinks || []);
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
   
+  const updateNodes = (newNodes: MapNode[]) => {
+    setNodes(newNodes);
+    onNodesChange?.(newNodes);
+  };
+
+  const updateLinks = (newLinks: MapLink[]) => {
+    setLinks(newLinks);
+    onLinksChange?.(newLinks);
+  };
+  
   const [isCreatingNode, setIsCreatingNode] = useState(false);
   const [isCreatingConnection, setIsCreatingConnection] = useState(false);
   const [connectionSourceId, setConnectionSourceId] = useState<string | null>(null);
