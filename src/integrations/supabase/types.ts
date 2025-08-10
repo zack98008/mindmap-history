@@ -14,7 +14,259 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      historical_elements: {
+        Row: {
+          created_at: string
+          date: string | null
+          description: string
+          id: string
+          image_url: string | null
+          name: string
+          tags: string[]
+          type: string
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string | null
+          description: string
+          id: string
+          image_url?: string | null
+          name: string
+          tags?: string[]
+          type: string
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          date?: string | null
+          description?: string
+          id?: string
+          image_url?: string | null
+          name?: string
+          tags?: string[]
+          type?: string
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
+      map_links: {
+        Row: {
+          created_at: string
+          id: string
+          layer: number
+          map_id: string
+          opacity: number
+          relationship_id: string | null
+          source_id: string
+          target_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          layer?: number
+          map_id: string
+          opacity?: number
+          relationship_id?: string | null
+          source_id: string
+          target_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          layer?: number
+          map_id?: string
+          opacity?: number
+          relationship_id?: string | null
+          source_id?: string
+          target_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_map_links_map"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "maps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_map_links_relationship"
+            columns: ["relationship_id"]
+            isOneToOne: false
+            referencedRelation: "relationships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_map_links_source"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "map_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_map_links_target"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "map_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      map_nodes: {
+        Row: {
+          created_at: string
+          element_id: string | null
+          id: string
+          is_locked: boolean
+          layer: number
+          map_id: string
+          opacity: number
+          updated_at: string
+          x: number
+          y: number
+        }
+        Insert: {
+          created_at?: string
+          element_id?: string | null
+          id: string
+          is_locked?: boolean
+          layer?: number
+          map_id: string
+          opacity?: number
+          updated_at?: string
+          x: number
+          y: number
+        }
+        Update: {
+          created_at?: string
+          element_id?: string | null
+          id?: string
+          is_locked?: boolean
+          layer?: number
+          map_id?: string
+          opacity?: number
+          updated_at?: string
+          x?: number
+          y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_map_nodes_map"
+            columns: ["map_id"]
+            isOneToOne: false
+            referencedRelation: "maps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maps: {
+        Row: {
+          config: Json | null
+          created_at: string
+          description: string
+          id: string
+          name: string
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          description?: string
+          id: string
+          name: string
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      relationships: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          source_id: string
+          target_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id: string
+          source_id: string
+          target_id: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          source_id?: string
+          target_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_relationships_source"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "historical_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_relationships_target"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "historical_elements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
